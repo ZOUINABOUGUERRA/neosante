@@ -1,0 +1,99 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isSageFemme() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'sage-femme';
+    }
+    
+    function hasAccessToDossier(dossierData) {
+      return isAdmin() || 
+             dossierData.createdBy == request.auth.uid ||
+             dossierData.assignedDoctorId == request.auth.uid;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if request.auth.uid == userId;
+      allow update: if request.auth.uid == userId || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Dossiers Prématurés
+    match /dossiers_prematures/{dossierId} {
+      allow read: if isAuthenticated() && hasAccessToDossier(resource.data);
+      allow create: if isSageFemme() || isAdmin();
+      allow update: if isSageFemme() || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Dossiers À Terme
+    match /dossiers_a_terme/{dossierId} {
+      allow read: if isAuthenticated() && hasAccessToDossier(resource.data);
+      allow create: if isSageFemme() || isAdmin();
+      allow update: if isSageFemme() || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Alerts
+    match /alerts/{alertId} {
+      allow read: if isAuthenticated();
+      allow write: if isSageFemme() || isAdmin();
+      allow update: if isSageFemme() || isAdmin();
+    }
+
+    // Notifications
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isSageFemme() || isAdmin();
+      allow update: if resource.data.userId == request.auth.uid;
+      allow delete: if resource.data.userId == request.auth.uid || isAdmin();
+    }
+
+    // Transfers
+    match /transfers/{transferId} {
+      allow read: if isAuthenticated() && 
+        (resource.data.requestedBy == request.auth.uid || 
+         resource.data.requestedTo == request.auth.uid ||
+         isAdmin());
+      allow create: if isSageFemme() || isAdmin();
+      allow update: if (resource.data.requestedTo == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys.hasOnly(['status', 'respondedAt', 'respondedBy', 'rejectionReason'])) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Surveillance
+    match /surveillance/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isSageFemme() || isAdmin();
+    }
+
+    // Archives
+    match /archives/{archiveId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Backups metadata
+    match /backups/{backupId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+      allow delete: if isAdmin();
+    }
+  }
+}

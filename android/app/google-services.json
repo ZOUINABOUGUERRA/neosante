@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "73077398421",
+    "project_id": "neosante-24dc4",
+    "storage_bucket": "neosante-24dc4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:73077398421:android:94c654c7a0b04a197df49c",
+        "android_client_info": {
+          "package_name": "com.example.neosante"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBtIRlmPB9oc4digjRwxIOWoQN52MkEN_Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

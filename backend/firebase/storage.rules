@@ -1,0 +1,60 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == 'admin';
+    }
+    
+    function isSageFemme() {
+      return isAuthenticated() && request.auth.token.role == 'sage-femme';
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Dossier images and documents
+    match /dossiers/{dossierId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isSageFemme() || isAdmin();
+      allow delete: if isAdmin();
+      
+      // Validate file type for images
+      allow create: if request.resource.size < 10 * 1024 * 1024 && 
+        (request.resource.contentType.matches('image/.*') || 
+         request.resource.contentType.matches('application/pdf'));
+    }
+    
+    // Profile images
+    match /profiles/{userId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId) || isAdmin();
+      allow delete: if isOwner(userId) || isAdmin();
+      
+      // Validate image file
+      allow create: if request.resource.size < 5 * 1024 * 1024 && 
+        request.resource.contentType.matches('image/.*');
+    }
+    
+    // Backups (admin only)
+    match /backups/{backupId}.json {
+      allow read, write, delete: if isAdmin();
+      
+      // Validate JSON file
+      allow create: if request.resource.contentType == 'application/json';
+    }
+    
+    // Temporary uploads (cleaned up by cloud function)
+    match /temp/{userId}/{fileName} {
+      allow read, write, delete: if isAuthenticated();
+      
+      // Auto-expire after 1 hour
+      allow create: if request.resource.size < 50 * 1024 * 1024;
+    }
+  }
+}
