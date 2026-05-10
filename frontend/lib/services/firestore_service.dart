@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../core/errors/failure.dart';
+import '../core/constants/app_constants.dart';
+import '../shared/models/user_model.dart';
 
 /// Generic Firestore service for CRUD operations.
 /// Provides type-safe database operations with error handling.
@@ -196,6 +198,41 @@ class FirestoreService {
       await _firestore.collection(collectionPath).doc(docId).update({
         field: FieldValue.arrayRemove([value]),
       });
+    } catch (e) {
+      throw mapFirestoreExceptionToFailure(e);
+    }
+  }
+
+  // ============================================================
+  // 🔥 NOUVELLES FONCTIONS POUR ADMIN (GESTION DES UTILISATEURS)
+  // ============================================================
+
+  /// Rechercher des utilisateurs par email (commence par)
+  /// Utilisé pour l'autocomplétion dans l'interface admin
+  Future<List<UserModel>> searchUsers(String query) async {
+    try {
+      final snapshot = await _firestore
+          .collection(AppConstants.usersCollection)
+          .where('email', isGreaterThanOrEqualTo: query)
+          .where('email', isLessThanOrEqualTo: '$query\uf8ff')
+          .limit(20)
+          .get();
+      return snapshot.docs
+          .map((doc) => UserModel.fromJson(doc.data(), docId: doc.id))
+          .toList();
+    } catch (e) {
+      throw mapFirestoreExceptionToFailure(e);
+    }
+  }
+
+  /// Récupérer le nombre total d'utilisateurs (pour admin)
+  Future<int> getUsersCount() async {
+    try {
+      final snapshot = await _firestore
+          .collection(AppConstants.usersCollection)
+          .count()
+          .get();
+      return snapshot.count;
     } catch (e) {
       throw mapFirestoreExceptionToFailure(e);
     }

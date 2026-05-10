@@ -1,3 +1,5 @@
+// frontend/lib/features/archives/screens/archive_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -5,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../../theme/colors.dart';
 import '../../../shared/extensions/context_ext.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../features/auth/providers/auth_provider.dart';
 import '../providers/archive_provider.dart';
 
 class ArchiveScreen extends ConsumerStatefulWidget {
@@ -18,6 +21,7 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
   String _selectedFilter = 'all'; // 'all', 'premature', 'fullterm'
   final TextEditingController _searchController = TextEditingController();
   bool _isRestoring = false;
+  bool _isAdmin = false;
 
   @override
   void initState() {
@@ -25,6 +29,20 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
     _searchController.addListener(() {
       ref.read(archiveSearchProvider.notifier).state = _searchController.text;
     });
+    _checkAdminStatus();
+  }
+
+  Future<void> _checkAdminStatus() async {
+    final user = ref.read(authProvider).user;
+    final isAdminNow = user?.isAdmin == true;
+    if (_isAdmin != isAdminNow) {
+      setState(() => _isAdmin = isAdminNow);
+    }
+    // Charger les archives appropriées
+    final notifier = ref.read(archiveProvider.notifier);
+    if (_isAdmin) {
+      await notifier.loadAllArchives();
+    }
   }
 
   @override
@@ -38,7 +56,7 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Archives'),
+        title: Text(_isAdmin ? 'Archives (Tous les utilisateurs)' : 'Archives'),
         backgroundColor: Colors.transparent,
         actions: [
           // Search button
@@ -130,7 +148,7 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
         setState(() => _selectedFilter = selected ? value : 'all');
       },
       backgroundColor: Colors.grey.shade100,
-      selectedColor: AppColors.medicalBlue.withOpacity(0.2),
+      selectedColor: AppColors.medicalBlue.withValues(alpha: 0.2),
       checkmarkColor: AppColors.medicalBlue,
     );
   }
@@ -203,6 +221,9 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
             AppConstants.dossiersPrematuresCollection ||
         archive['serviceType'] == AppConstants.servicePremature;
 
+    // Afficher le créateur si admin
+    final createdBy = _isAdmin ? archive['createdBy'] ?? 'Inconnu' : null;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
@@ -223,8 +244,8 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: isPremature
-                          ? Colors.purple.withOpacity(0.2)
-                          : AppColors.stableGreen.withOpacity(0.2),
+                          ? Colors.purple.withValues(alpha: 0.2)
+                          : AppColors.stableGreen.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -242,7 +263,7 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.grey.withOpacity(0.2),
+                      color: Colors.grey.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -257,7 +278,7 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
               Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: AppColors.medicalBlue.withOpacity(0.1),
+                    backgroundColor: AppColors.medicalBlue.withValues(alpha: 0.1),
                     child:
                         const Icon(Icons.archive, color: AppColors.medicalBlue),
                   ),
@@ -276,6 +297,12 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
                           style:
                               const TextStyle(fontSize: 12, color: Colors.grey),
                         ),
+                        if (_isAdmin && createdBy != null)
+                          Text(
+                            'Créé par: $createdBy',
+                            style: const TextStyle(
+                                fontSize: 10, color: Colors.grey),
+                          ),
                       ],
                     ),
                   ),
@@ -686,5 +713,5 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
-  }
-}
+  }}
+  

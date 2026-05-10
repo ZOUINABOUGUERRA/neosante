@@ -13,6 +13,7 @@ import 'steps/step3_birth_data.dart';
 import 'steps/step4_systematic_gestures.dart';
 import 'steps/step5_resuscitation.dart';
 import 'steps/step6_transfer.dart';
+import 'steps/step7_surveillance.dart';
 import '../../../shared/extensions/context_ext.dart';
 
 /// Create Dossier Screen - 7-step wizard for creating a new neonatal dossier
@@ -20,7 +21,8 @@ class CreateDossierScreen extends ConsumerStatefulWidget {
   const CreateDossierScreen({super.key});
 
   @override
-  ConsumerState<CreateDossierScreen> createState() => _CreateDossierScreenState();
+  ConsumerState<CreateDossierScreen> createState() =>
+      _CreateDossierScreenState();
 }
 
 class _CreateDossierScreenState extends ConsumerState<CreateDossierScreen> {
@@ -94,6 +96,18 @@ class _CreateDossierScreenState extends ConsumerState<CreateDossierScreen> {
         initialData: _formData,
       ),
     ));
+    _steps.add(StepWidget(
+      title: 'Surveillance',
+      subtitle: 'Glycémie, température, médicaments',
+      widget: Step7Surveillance(
+        dossierId: _dossierId,
+        dossierType: _serviceType == AppConstants.servicePremature 
+            ? AppConstants.dossiersPrematuresCollection 
+            : AppConstants.dossiersATermeCollection,
+        dossierNumber: _formData['dossierNumber'] ?? '',
+        newbornName: _formData['newbornName'] ?? '',
+      ),
+    ));
   }
 
   Future<void> _saveDossier() async {
@@ -111,9 +125,11 @@ class _CreateDossierScreenState extends ConsumerState<CreateDossierScreen> {
 
       // Generate dossier number
       final timestamp = DateTime.now();
-      final dateStr = '${timestamp.year}${timestamp.month.toString().padLeft(2, '0')}${timestamp.day.toString().padLeft(2, '0')}';
+      final dateStr =
+          '${timestamp.year}${timestamp.month.toString().padLeft(2, '0')}${timestamp.day.toString().padLeft(2, '0')}';
       final sequence = DateTime.now().millisecondsSinceEpoch % 1000;
-      final dossierNumber = 'DOS-$dateStr-${sequence.toString().padLeft(3, '0')}';
+      final dossierNumber =
+          'DOS-$dateStr-${sequence.toString().padLeft(3, '0')}';
       _formData['dossierNumber'] = dossierNumber;
       _formData['createdAt'] = FieldValue.serverTimestamp();
       _formData['createdBy'] = FirebaseAuth.instance.currentUser?.uid;
@@ -261,15 +277,20 @@ class _CreateDossierScreenState extends ConsumerState<CreateDossierScreen> {
                           shape: BoxShape.circle,
                           color: isCompleted
                               ? AppColors.stableGreen
-                              : (isActive ? AppColors.medicalBlue : Colors.grey.shade300),
+                              : (isActive
+                                  ? AppColors.medicalBlue
+                                  : Colors.grey.shade300),
                         ),
                         child: Center(
                           child: isCompleted
-                              ? const Icon(Icons.check, color: Colors.white, size: 20)
+                              ? const Icon(Icons.check,
+                                  color: Colors.white, size: 20)
                               : Text(
                                   '${index + 1}',
                                   style: TextStyle(
-                                    color: isActive ? Colors.white : Colors.grey.shade600,
+                                    color: isActive
+                                        ? Colors.white
+                                        : Colors.grey.shade600,
                                   ),
                                 ),
                         ),
@@ -318,11 +339,12 @@ class _CreateDossierScreenState extends ConsumerState<CreateDossierScreen> {
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: isActive ? AppColors.medicalBlue.withOpacity(0.05) : Colors.transparent,
+              color: isActive
+                  ? AppColors.medicalBlue.withValues(alpha: 0.05)
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(12),
-              border: isActive
-                  ? Border.all(color: AppColors.medicalBlue)
-                  : null,
+              border:
+                  isActive ? Border.all(color: AppColors.medicalBlue) : null,
             ),
             child: Row(
               children: [
@@ -333,7 +355,9 @@ class _CreateDossierScreenState extends ConsumerState<CreateDossierScreen> {
                     shape: BoxShape.circle,
                     color: isCompleted
                         ? AppColors.stableGreen
-                        : (isActive ? AppColors.medicalBlue : Colors.grey.shade300),
+                        : (isActive
+                            ? AppColors.medicalBlue
+                            : Colors.grey.shade300),
                   ),
                   child: Center(
                     child: isCompleted
@@ -341,7 +365,9 @@ class _CreateDossierScreenState extends ConsumerState<CreateDossierScreen> {
                         : Text(
                             number.toString(),
                             style: TextStyle(
-                              color: isActive ? Colors.white : Colors.grey.shade600,
+                              color: isActive
+                                  ? Colors.white
+                                  : Colors.grey.shade600,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -355,13 +381,17 @@ class _CreateDossierScreenState extends ConsumerState<CreateDossierScreen> {
                       Text(
                         title,
                         style: TextStyle(
-                          fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                          color: isActive ? AppColors.medicalBlue : Colors.grey.shade700,
+                          fontWeight:
+                              isActive ? FontWeight.bold : FontWeight.normal,
+                          color: isActive
+                              ? AppColors.medicalBlue
+                              : Colors.grey.shade700,
                         ),
                       ),
                       Text(
                         subtitle,
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        style:
+                            const TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                     ],
                   ),

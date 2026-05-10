@@ -11,7 +11,7 @@ final authGuardProvider = Provider<AuthGuard>((ref) => AuthGuard(ref));
 
 /// AuthGuard class for managing route protection
 class AuthGuard {
-  final Ref ref;  // ✅ تغيير من WidgetRef إلى Ref
+  final Ref ref;
   
   AuthGuard(this.ref);
 
@@ -23,11 +23,12 @@ class AuthGuard {
     final isLoginRoute = state.matchedLocation == '/login';
     final isForgotPasswordRoute = state.matchedLocation == '/forgot-password';
     
-    // Allow public routes without authentication
+    // Public routes without authentication
     final publicRoutes = ['/login', '/forgot-password'];
     if (publicRoutes.contains(state.matchedLocation)) {
       if (isLoggedIn && (isLoginRoute || isForgotPasswordRoute)) {
-        return '/dashboard';
+        // Redirection après connexion selon le rôle
+        return user?.isAdmin == true ? '/admin/dashboard' : '/dashboard';
       }
       return null;
     }
@@ -37,11 +38,49 @@ class AuthGuard {
       return '/login';
     }
     
-    // Role-based route protection
-    if (!_hasRequiredRole(state, user)) {
-      return '/dashboard';
+    // Role-based routing
+    final path = state.matchedLocation;
+    
+    // ✅ Admin-only routes (mises à jour)
+    final adminRoutes = [
+      '/admin',
+      '/admin/dashboard',
+      '/admin/users',
+      '/admin/archives',
+      '/backup',
+      '/settings/users',
+    ];
+    
+    // ✅ Sage-femme only routes (block admin from accessing these)
+    final sageFemmeRoutes = [
+      '/dashboard',
+      '/dossiers',
+      '/alerts',
+      '/transfers',
+      '/ai-assistant',
+    ];
+    
+    // ✅ Routes accessible by both roles
+    final commonRoutes = [
+      '/settings',
+      '/notifications',
+    ];
+    
+    // Check admin-only routes
+    if (adminRoutes.any((route) => path.startsWith(route))) {
+      if (user?.isAdmin != true) {
+        return '/dashboard'; // redirect non-admin to their dashboard
+      }
     }
     
+    // Check sage-femme only routes (block admin)
+    if (sageFemmeRoutes.any((route) => path.startsWith(route))) {
+      if (user?.isAdmin == true) {
+        return '/admin/dashboard';
+      }
+    }
+    
+    // Common routes are accessible by both
     return null;
   }
 
@@ -51,6 +90,10 @@ class AuthGuard {
     
     // Admin-only routes
     final adminRoutes = [
+      '/admin',
+      '/admin/dashboard',
+      '/admin/users',
+      '/admin/archives',
       '/backup',
       '/settings/users',
       '/analytics',

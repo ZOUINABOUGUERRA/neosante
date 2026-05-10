@@ -71,4 +71,20 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
   }
+  
+  // Ajouter/modifier ces règles dans backend/firebase/firestore.rules
+
+// Pour la collection users, permettre à l'admin de tout faire
+match /users/{userId} {
+  allow read: if isAuthenticated();
+  allow create: if isAdmin() || request.auth.uid == userId;
+  allow update: if isAdmin() || request.auth.uid == userId;
+  allow delete: if isAdmin();
+}
+
+// Pour la collection archives, permettre à l'admin de tout lire
+match /archives/{archiveId} {
+  allow read: if isAuthenticated() && (isAdmin() || resource.data.createdBy == request.auth.uid);
+  allow write: if isAdmin();
+}
 }

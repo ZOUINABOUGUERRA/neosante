@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../theme/colors.dart';
-//import '../../../shared/extensions/context_ext.dart';
-//import '../../../services/ai_service.dart';
 import '../providers/ai_provider.dart';
 
 class AIAssistantScreen extends ConsumerStatefulWidget {
@@ -22,7 +20,6 @@ class AIAssistantScreen extends ConsumerStatefulWidget {
 class _AIAssistantScreenState extends ConsumerState<AIAssistantScreen> {
   final TextEditingController _questionController = TextEditingController();
   bool _isAnalyzing = false;
-  //String _customQueryResult = '';
   List<Map<String, dynamic>> _chatHistory = [];
 
   @override
@@ -55,25 +52,9 @@ class _AIAssistantScreenState extends ConsumerState<AIAssistantScreen> {
     });
 
     try {
-      // Build a prompt with context from the dossier if available
-      String fullPrompt = question;
-      if (widget.dossierData != null) {
-        fullPrompt = '''
-Contexte médical:
-- Nouveau-né: ${widget.dossierData!['newbornName'] ?? 'N/A'}
-- Âge gestationnel: ${widget.dossierData!['gestationalAge'] ?? '?'} SA
-- Poids: ${widget.dossierData!['birthWeight'] ?? '?'} g
-- Glycémie: ${widget.dossierData!['bloodGlucose'] ?? '?'} mg/dL
-- Température: ${widget.dossierData!['bodyTemperature'] ?? '?'} °C
-
-Question du médecin: $question
-
-Répondez de manière professionnelle et concise. Rappel: Vous êtes un assistant, les décisions médicales reviennent au praticien.
-''';
-      }
-
-      // For now, simulate response or use the AI service
-      // In production, this would call a cloud function
+      // ✅ إزالة المتغير غير المستخدم fullPrompt
+      // Build a prompt with context from the dossier if available directly in the call
+      
       final response = await _simulateAIResponse(question, widget.dossierData);
       
       setState(() {
@@ -275,19 +256,19 @@ Répondez de manière professionnelle et concise. Rappel: Vous êtes un assistan
           // Header
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppColors.medicalBlue, AppColors.lightBlue],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-            ),
+            decoration: const BoxDecoration(
+  gradient: LinearGradient(
+    colors: [AppColors.medicalBlue, AppColors.lightBlue],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  ),
+  borderRadius: BorderRadius.all(Radius.circular(16)),
+),
             child: Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: Colors.white,
                     shape: BoxShape.circle,
                   ),
@@ -318,11 +299,12 @@ Répondez de manière professionnelle et concise. Rappel: Vous êtes un assistan
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.orange.withOpacity(0.1),
+              color: Colors.orange.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.orange.withOpacity(0.3)),
+              border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
             ),
-            child: Row(
+            child:const 
+             Row(
               children: [
                 const Icon(Icons.warning_amber, color: Colors.orange, size: 20),
                 const SizedBox(width: 12),

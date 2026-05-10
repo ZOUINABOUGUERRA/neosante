@@ -25,7 +25,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    // Pre-fill with demo credentials based on selected role
     _updateCredentials();
   }
 
@@ -47,7 +46,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             _passwordController.text.trim(),
           );
       if (mounted) {
-        GoRouter.of(context).pushReplacementNamed('dashboard');
+        final user = ref.read(authProvider).user;
+        if (user?.isAdmin == true) {
+          GoRouter.of(context).pushReplacementNamed('/admin/dashboard');
+        } else {
+          GoRouter.of(context).pushReplacementNamed('/dashboard');
+        }
       }
     } on Failure catch (e) {
       if (mounted) {
@@ -62,7 +66,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -82,11 +86,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Baby illustration icon
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: AppColors.medicalBlue.withOpacity(0.1),
+                        color: AppColors.medicalBlue.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -110,7 +113,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     const SizedBox(height: 32),
 
-                    // Role selector
                     SegmentedButton<String>(
                       segments: const [
                         ButtonSegment(
@@ -150,7 +152,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Email field
                     TextField(
                       controller: _emailController,
                       decoration: const InputDecoration(
@@ -164,7 +165,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Password field
                     TextField(
                       controller: _passwordController,
                       decoration: InputDecoration(
@@ -190,7 +190,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Login button
                     if (_isLoading)
                       const Center(child: CircularProgressIndicator())
                     else
@@ -211,7 +210,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     const SizedBox(height: 16),
 
-                    // Forgot password
                     TextButton(
                       onPressed: () {
                         GoRouter.of(context).pushNamed('forgot-password');
@@ -221,7 +219,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const Divider(),
                     const SizedBox(height: 16),
 
-                    // Footer
                     Text(
                       'Développé par NéoSanté Medical Team',
                       style: TextStyle(color: Colors.grey[600], fontSize: 12),

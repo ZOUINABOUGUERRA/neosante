@@ -207,7 +207,7 @@ class ArchiveNotifier extends StateNotifier<ArchiveState> {
   /// Get archive statistics
   Map<String, dynamic> getStatistics() {
     final archives = state.archives;
-    final now = DateTime.now();
+    //final now = DateTime.now();
 
     // Count by month
     final Map<String, int> byMonth = {};
@@ -266,4 +266,43 @@ final filteredArchivesProvider = Provider<List<Map<String, dynamic>>>((ref) {
                 .contains(lowerQuery) ??
             false);
   }).toList();
+
+  // أضف هذه الدالة في ArchiveNotifier
+
+/// Charger tous les archives (pour admin)
+Future<void> loadAllArchives() async {
+  state = state.copyWith(isLoading: true, error: null);
+  try {
+    final snapshot = await _firestore
+        .collection(AppConstants.archivesCollection)
+        .orderBy('archivedAt', descending: true)
+        .get();
+
+    final archives = snapshot.docs.map((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      data['id'] = doc.id;
+      return data;
+    }).toList();
+
+    final prematureCount = archives.where((a) =>
+      a['originalCollection'] == AppConstants.dossiersPrematuresCollection ||
+      a['serviceType'] == AppConstants.servicePremature
+    ).length;
+
+    final fullTermCount = archives.where((a) =>
+      a['originalCollection'] == AppConstants.dossiersATermeCollection ||
+      a['serviceType'] == AppConstants.serviceFullTerm
+    ).length;
+
+    state = state.copyWith(
+      archives: archives,
+      totalCount: archives.length,
+      prematureCount: prematureCount,
+      fullTermCount: fullTermCount,
+    );
+  } catch (e) {
+    state = state.copyWith(error: e.toString());
+  } finally {
+    state = state.copyWith(isLoading: false);
+  }
 });
