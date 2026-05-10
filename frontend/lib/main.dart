@@ -1,126 +1,148 @@
-// lib/routes/responsive_shell.dart
-
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:go_router/go_router.dart';
 
-class ResponsiveShell extends StatefulWidget {
-  final Widget child;
-  const ResponsiveShell({super.key, required this.child});
+import 'config/firebase_options.dart';  // ✅ إضافة استيراد إعدادات Firebase
+import 'core/constants/app_constants.dart';
+import 'features/auth/screens/login_screen.dart';
+import 'features/auth/screens/forgot_password_screen.dart';
+import 'features/dashboard/screens/dashboard_screen.dart';
+import 'features/dossiers/screens/dossier_list_screen.dart';
+import 'features/dossiers/screens/create_dossier_screen.dart';
+import 'features/dossiers/screens/dossier_detail_screen.dart';
+import 'features/alerts/screens/alert_center_screen.dart';
+import 'features/transfers/screens/transfer_requests_screen.dart';
+import 'features/ai_assistant/screens/ai_assistant_screen.dart';
+import 'features/backup/screens/backup_screen.dart';
+import 'features/settings/screens/settings_screen.dart';
+import 'features/notifications/screens/notification_screen.dart';
+import 'routes/route_guard.dart';
+import 'routes/responsive_shell.dart';
 
-  @override
-  State<ResponsiveShell> createState() => _ResponsiveShellState();
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // ✅ تهيئة Firebase مع الإعدادات الصحيحة
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // Hive for offline storage
+  await Hive.initFlutter();
+  await Hive.openBox(AppConstants.hiveOfflineBox);
+  await Hive.openBox(AppConstants.hiveSyncQueueBox);
+
+  runApp(const ProviderScope(child: NeoSanteApp()));
 }
 
-class _ResponsiveShellState extends State<ResponsiveShell> {
-  int _selectedIndex = 0;
+class NeoSanteApp extends ConsumerStatefulWidget {
+  const NeoSanteApp({super.key});
+
+  @override
+  ConsumerState<NeoSanteApp> createState() => _NeoSanteAppState();
+}
+
+class _NeoSanteAppState extends ConsumerState<NeoSanteApp> {
+  late GoRouter _router;
+
+  @override
+  void initState() {
+    super.initState();
+    _router = _createRouter();
+  }
+
+  GoRouter _createRouter() {
+    final authGuard = ref.read(authGuardProvider);
+    
+    return GoRouter(
+      initialLocation: '/login',
+      redirect: (context, state) => authGuard.redirect(state),
+      routes: [
+        GoRoute(
+          path: '/login',
+          name: 'login',
+          builder: (context, state) => const LoginScreen(),
+        ),
+        GoRoute(
+          path: '/forgot-password',
+          name: 'forgot-password',
+          builder: (context, state) => const ForgotPasswordScreen(),
+        ),
+        ShellRoute(
+          builder: (context, state, child) {
+            return ResponsiveShell(child: child);
+          },
+          routes: [
+            GoRoute(
+              path: '/dashboard',
+              name: 'dashboard',
+              builder: (context, state) => const DashboardScreen(),
+            ),
+            GoRoute(
+              path: '/dossiers',
+              name: 'dossiers',
+              builder: (context, state) => const DossierListScreen(),
+            ),
+            GoRoute(
+              path: '/dossiers/create',
+              name: 'create_dossier',
+              builder: (context, state) => const CreateDossierScreen(),
+            ),
+            GoRoute(
+              path: '/dossiers/:id',
+              name: 'dossier_detail',
+              builder: (context, state) => DossierDetailScreen(
+                dossierId: state.pathParameters['id']!,
+              ),
+            ),
+            GoRoute(
+              path: '/alerts',
+              name: 'alerts',
+              builder: (context, state) => const AlertCenterScreen(),
+            ),
+            GoRoute(
+              path: '/transfers',
+              name: 'transfers',
+              builder: (context, state) => const TransferRequestsScreen(),
+            ),
+            GoRoute(
+              path: '/ai-assistant',
+              name: 'ai_assistant',
+              builder: (context, state) => const AIAssistantScreen(),
+            ),
+            GoRoute(
+              path: '/backup',
+              name: 'backup',
+              builder: (context, state) => const BackupScreen(),
+            ),
+            GoRoute(
+              path: '/settings',
+              name: 'settings',
+              builder: (context, state) => const SettingsScreen(),
+            ),
+            GoRoute(
+              path: '/notifications',
+              name: 'notifications',
+              builder: (context, state) => const NotificationScreen(),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width > 800;
-    final currentPath = GoRouterState.of(context).uri.path;
-
-    _updateSelectedIndex(currentPath);
-
-    if (isDesktop) {
-      return Row(
-        children: [
-          NavigationRail(
-            selectedIndex: _selectedIndex,
-            onDestinationSelected: (index) {
-              setState(() => _selectedIndex = index);
-              _navigateToDestination(index, context);
-            },
-            labelType: NavigationRailLabelType.all,
-            destinations: const [
-              NavigationRailDestination(
-                icon: Icon(Icons.dashboard),
-                label: Text('Dashboard'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.folder),
-                label: Text('Dossiers'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.warning),
-                label: Text('Alertes'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.swap_horiz),
-                label: Text('Transferts'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.assistant),
-                label: Text('AI'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.backup),
-                label: Text('Backup'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.settings),
-                label: Text('Paramètres'),
-              ),
-            ],
-          ),
-          Expanded(child: widget.child),
-        ],
-      );
-    } else {
-      return Scaffold(
-        body: widget.child,
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Accueil'),
-            BottomNavigationBarItem(icon: Icon(Icons.folder), label: 'Dossiers'),
-            BottomNavigationBarItem(icon: Icon(Icons.warning), label: 'Alertes'),
-            BottomNavigationBarItem(icon: Icon(Icons.assistant), label: 'AI'),
-          ],
-          onTap: (index) {
-            setState(() => _selectedIndex = index);
-            _navigateToMobileDestination(index, context);
-          },
-        ),
-      );
-    }
-  }
-
-  void _updateSelectedIndex(String path) {
-    if (path.startsWith('/dashboard')) {
-      _selectedIndex = 0;
-    } else if (path.startsWith('/dossiers')) {
-      _selectedIndex = 1;
-    } else if (path.startsWith('/alerts')) {
-      _selectedIndex = 2;
-    } else if (path.startsWith('/transfers')) {
-      _selectedIndex = 3;
-    } else if (path.startsWith('/ai-assistant')) {
-      _selectedIndex = 4;
-    } else if (path.startsWith('/backup')) {
-      _selectedIndex = 5;
-    } else if (path.startsWith('/settings')) {
-      _selectedIndex = 6;
-    }
-  }
-
-  void _navigateToDestination(int index, BuildContext context) {
-    switch (index) {
-      case 0: GoRouter.of(context).go('/dashboard'); break;
-      case 1: GoRouter.of(context).go('/dossiers'); break;
-      case 2: GoRouter.of(context).go('/alerts'); break;
-      case 3: GoRouter.of(context).go('/transfers'); break;
-      case 4: GoRouter.of(context).go('/ai-assistant'); break;
-      case 5: GoRouter.of(context).go('/backup'); break;
-      case 6: GoRouter.of(context).go('/settings'); break;
-    }
-  }
-
-  void _navigateToMobileDestination(int index, BuildContext context) {
-    switch (index) {
-      case 0: GoRouter.of(context).go('/dashboard'); break;
-      case 1: GoRouter.of(context).go('/dossiers'); break;
-      case 2: GoRouter.of(context).go('/alerts'); break;
-      case 3: GoRouter.of(context).go('/ai-assistant'); break;
-    }
+    return MaterialApp.router(
+      title: 'NéoSanté',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2B7A78)),
+      ),
+      routerConfig: _router,
+    );
   }
 }

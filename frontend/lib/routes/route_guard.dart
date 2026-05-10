@@ -5,20 +5,19 @@ import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../features/auth/providers/auth_provider.dart';
 import '../shared/models/user_model.dart';
-import '../core/constants/app_constants.dart';
 
 /// Route guard provider for protecting routes based on authentication and roles
 final authGuardProvider = Provider<AuthGuard>((ref) => AuthGuard(ref));
 
 /// AuthGuard class for managing route protection
 class AuthGuard {
-  final Ref _ref;
+  final Ref ref;  // ✅ تغيير من WidgetRef إلى Ref
   
-  AuthGuard(this._ref);
+  AuthGuard(this.ref);
 
   /// Redirect function for GoRouter
   String? redirect(GoRouterState state) {
-    final authState = _ref.read(authProvider);
+    final authState = ref.read(authProvider);
     final isLoggedIn = authState.isLoggedIn;
     final user = authState.user;
     final isLoginRoute = state.matchedLocation == '/login';
@@ -67,7 +66,7 @@ class AuthGuard {
 
   /// Check if user can access a specific dossier
   Future<bool> canAccessDossier(String dossierId, String dossierType) async {
-    final authState = _ref.read(authProvider);
+    final authState = ref.read(authProvider);
     final user = authState.user;
     
     if (user == null) return false;
@@ -79,7 +78,7 @@ class AuthGuard {
       
       if (!doc.exists) return false;
       
-      final data = doc.data() as Map<String, dynamic>?;
+      final data = doc.data();
       if (data == null) return false;
       
       final createdBy = data['createdBy'];
@@ -93,23 +92,23 @@ class AuthGuard {
 
   /// Get current user
   UserModel? getCurrentUser() {
-    return _ref.read(authProvider).user;
+    return ref.read(authProvider).user;
   }
 
   /// Check if user is authenticated
   bool isAuthenticated() {
-    return _ref.read(authProvider).isLoggedIn;
+    return ref.read(authProvider).isLoggedIn;
   }
 
   /// Check if user is admin
   bool isAdmin() {
-    final user = _ref.read(authProvider).user;
+    final user = ref.read(authProvider).user;
     return user?.isAdmin ?? false;
   }
 
   /// Check if user is sage-femme
   bool isSageFemme() {
-    final user = _ref.read(authProvider).user;
+    final user = ref.read(authProvider).user;
     return user?.isSageFemme ?? false;
   }
 }

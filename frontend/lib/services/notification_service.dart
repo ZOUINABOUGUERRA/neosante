@@ -1,9 +1,6 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../core/errors/failure.dart';
-import '../shared/models/notification_model.dart';
-import '../features/settings/providers/settings_provider.dart';
-import '../features/settings/screens/settings_screen.dart';
 
 class NotificationService {
   static final FirebaseMessaging _fcm = FirebaseMessaging.instance;

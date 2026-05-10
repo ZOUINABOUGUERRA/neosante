@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../services/backup_service.dart';
 import '../../../services/storage_service.dart';
-import '../../../core/errors/failure.dart';
 import '../../../services/auth_service.dart';
 
 /// Backup state class

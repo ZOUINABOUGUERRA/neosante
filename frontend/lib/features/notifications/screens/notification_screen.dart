@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../theme/colors.dart';
-import '../../../shared/extensions/context_ext.dart';
 import '../../../shared/models/notification_model.dart';
 import '../providers/notification_provider.dart';
 

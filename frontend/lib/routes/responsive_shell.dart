@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../theme/colors.dart';
 
 class ResponsiveShell extends StatefulWidget {
   final Widget child;

@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../core/errors/failure.dart';
-import '../core/constants/app_constants.dart';
 
 /// Generic Firestore service for CRUD operations.
 /// Provides type-safe database operations with error handling.

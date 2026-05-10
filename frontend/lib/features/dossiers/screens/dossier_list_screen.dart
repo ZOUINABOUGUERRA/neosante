@@ -5,7 +5,6 @@ import '../../../theme/colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../providers/dossier_provider.dart';
 import '../widgets/dossier_card.dart';
-import '../../../shared/extensions/context_ext.dart';
 
 class DossierListScreen extends ConsumerStatefulWidget {
   const DossierListScreen({super.key});

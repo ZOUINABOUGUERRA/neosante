@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../../theme/colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../services/pdf_service.dart';
-import '../../../services/alert_service.dart';
 import '../../../shared/extensions/context_ext.dart';
-import '../providers/dossier_provider.dart';
 
 class DossierDetailScreen extends ConsumerStatefulWidget {
   final String dossierId;

@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../shared/models/alert_model.dart';
 import '../../../services/auth_service.dart';
-import '../../../services/notification_service.dart';
 
 /// Alert state class
 class AlertState {
@@ -74,7 +73,7 @@ class AlertNotifier extends StateNotifier<AlertState> {
         .listen((snapshot) {
       final alerts = snapshot.docs
           .map((doc) =>
-              AlertModel.fromJson(doc.data() as Map<String, dynamic>, doc.id))
+              AlertModel.fromJson(doc.data(), doc.id))
           .toList();
 
       // Count unacknowledged alerts by severity
@@ -192,7 +191,7 @@ class AlertNotifier extends StateNotifier<AlertState> {
 
       return snapshot.docs
           .map((doc) =>
-              AlertModel.fromJson(doc.data() as Map<String, dynamic>, doc.id))
+              AlertModel.fromJson(doc.data(), doc.id))
           .toList();
     } catch (e) {
       return [];
@@ -210,7 +209,7 @@ class AlertNotifier extends StateNotifier<AlertState> {
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) =>
-                AlertModel.fromJson(doc.data() as Map<String, dynamic>, doc.id))
+                AlertModel.fromJson(doc.data(), doc.id))
             .toList());
   }
 
@@ -224,7 +223,7 @@ class AlertNotifier extends StateNotifier<AlertState> {
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) =>
-                AlertModel.fromJson(doc.data() as Map<String, dynamic>, doc.id))
+                AlertModel.fromJson(doc.data(), doc.id))
             .toList());
   }
 
@@ -276,6 +275,6 @@ final alertsByDossierProvider =
 
   return snapshot.docs
       .map((doc) =>
-          AlertModel.fromJson(doc.data() as Map<String, dynamic>, doc.id))
+          AlertModel.fromJson(doc.data(), doc.id))
       .toList();
 });

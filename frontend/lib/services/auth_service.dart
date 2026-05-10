@@ -68,13 +68,21 @@ class AuthService {
     }
   }
 
+  /// ✅ دالة مصححة: getUserById
   Future<UserModel?> getUserById(String uid) async {
-    final userDoc = await _firestore
-        .collection(AppConstants.usersCollection)
-        .doc(uid)
-        .get();
-    if (!userDoc.exists) return null;
-    return UserModel.fromJson(userDoc.data()!, docId: userDoc.id);
+    try {
+      final userDoc = await _firestore
+          .collection(AppConstants.usersCollection)
+          .doc(uid) // ✅ استخدام uid مباشرة
+          .get();
+
+      if (!userDoc.exists) return null;
+
+      return UserModel.fromJson(userDoc.data()!, docId: userDoc.id);
+    } catch (e) {
+      throw AuthFailure(
+          message: 'Erreur lors de la récupération de l\'utilisateur: $e');
+    }
   }
 
   Future<void> sendPasswordResetEmail(String email) async {

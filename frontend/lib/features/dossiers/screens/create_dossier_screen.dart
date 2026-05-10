@@ -5,17 +5,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../theme/colors.dart';
 import '../../../core/constants/app_constants.dart';
-import '../../../services/firestore_service.dart';
 import '../../../services/alert_service.dart';
 import '../../../shared/models/dossier_model.dart';
-import '../providers/dossier_provider.dart';
 import 'steps/step1_service.dart';
 import 'steps/step2_identification.dart';
 import 'steps/step3_birth_data.dart';
 import 'steps/step4_systematic_gestures.dart';
 import 'steps/step5_resuscitation.dart';
 import 'steps/step6_transfer.dart';
-import 'steps/step7_surveillance.dart';
 import '../../../shared/extensions/context_ext.dart';
 
 /// Create Dossier Screen - 7-step wizard for creating a new neonatal dossier

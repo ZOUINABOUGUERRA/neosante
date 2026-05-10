@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../shared/models/alert_model.dart';
-import '../../../shared/models/dossier_model.dart';
 import '../../../shared/models/transfer_model.dart';
 import '../../../services/auth_service.dart';
 
@@ -316,7 +315,7 @@ final recentDossiersProvider =
       .limit(AppConstants.dashboardRecentLimit)
       .snapshots()
       .map((snapshot) => snapshot.docs.map((doc) {
-            final data = doc.data() as Map<String, dynamic>;
+            final data = doc.data();
             data['id'] = doc.id;
             data['type'] = 'premature';
             return data;
@@ -328,7 +327,7 @@ final recentDossiersProvider =
       .limit(AppConstants.dashboardRecentLimit)
       .snapshots()
       .map((snapshot) => snapshot.docs.map((doc) {
-            final data = doc.data() as Map<String, dynamic>;
+            final data = doc.data();
             data['id'] = doc.id;
             data['type'] = 'fullterm';
             return data;
@@ -357,7 +356,7 @@ final recentAlertsProvider = StreamProvider<List<AlertModel>>((ref) {
       .snapshots()
       .map((snapshot) => snapshot.docs
           .map((doc) =>
-              AlertModel.fromJson(doc.data() as Map<String, dynamic>, doc.id))
+              AlertModel.fromJson(doc.data(), doc.id))
           .toList());
 });
 
@@ -372,7 +371,7 @@ final recentTransfersProvider = StreamProvider<List<TransferModel>>((ref) {
       .snapshots()
       .map((snapshot) => snapshot.docs
           .map((doc) => TransferModel.fromJson(
-              doc.data() as Map<String, dynamic>, doc.id))
+              doc.data(), doc.id))
           .toList());
 });
 

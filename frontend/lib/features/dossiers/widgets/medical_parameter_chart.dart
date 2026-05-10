@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../theme/colors.dart';
-import '../../../core/constants/app_constants.dart';
 
 class MedicalParameterChart extends StatelessWidget {
   final List<Map<String, dynamic>> data;

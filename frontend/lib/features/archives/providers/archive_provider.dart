@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/constants/app_constants.dart';
-import '../../../shared/models/dossier_model.dart';
 
 /// Archive state class
 class ArchiveState {
@@ -63,7 +62,7 @@ class ArchiveNotifier extends StateNotifier<ArchiveState> {
         .snapshots()
         .listen((snapshot) {
       final archives = snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
+        final data = doc.data();
         data['id'] = doc.id;
         return data;
       }).toList();

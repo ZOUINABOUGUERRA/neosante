@@ -50,7 +50,7 @@ final aiAssistantProvider = StateNotifierProvider<AIAssistantNotifier, AIAssista
 
 /// AI Assistant notifier for managing AI interactions
 class AIAssistantNotifier extends StateNotifier<AIAssistantState> {
-  final AIService _aiService = AIService();
+  //final AIService _aiService = AIService();
 
   AIAssistantNotifier() : super(const AIAssistantState());
 

@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../core/errors/failure.dart';
-import '../core/constants/app_constants.dart';
 
 /// AI service for Claude API integration.
 /// Provides medical analysis, summary generation, and decision support.
