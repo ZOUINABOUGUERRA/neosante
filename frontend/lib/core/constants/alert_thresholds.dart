@@ -11,7 +11,7 @@ class AlertThresholds {
   /// Returns a tuple: (severity, message)
   static (String severity, String message) evaluateGlucose(double? glucoseMgDL) {
     if (glucoseMgDL == null) {
-      return (AppConstants.alertSeverityInfo, 'Glycémie non mesurée');
+      return (AppConstants.alertSeverityInfo, '📊 Glycémie non mesurée');
     }
     
     if (glucoseMgDL < AppConstants.glucoseCriticalLow) {
@@ -31,14 +31,14 @@ class AlertThresholds {
       );
     }
     
-    return (AppConstants.alertSeverityInfo, 'Glycémie normale: ${glucoseMgDL.toStringAsFixed(1)} mg/dL');
+    return (AppConstants.alertSeverityInfo, '✅ Glycémie normale: ${glucoseMgDL.toStringAsFixed(1)} mg/dL');
   }
 
   // ==================== TEMPERATURE EVALUATION ====================
   /// Evaluates body temperature and returns alert severity and message.
   static (String severity, String message) evaluateTemperature(double? tempCelsius) {
     if (tempCelsius == null) {
-      return (AppConstants.alertSeverityInfo, 'Température non mesurée');
+      return (AppConstants.alertSeverityInfo, '📊 Température non mesurée');
     }
     
     if (tempCelsius < AppConstants.temperatureEmergency) {
@@ -58,14 +58,14 @@ class AlertThresholds {
       );
     }
     
-    return (AppConstants.alertSeverityInfo, 'Température normale: ${tempCelsius.toStringAsFixed(1)}°C');
+    return (AppConstants.alertSeverityInfo, '✅ Température normale: ${tempCelsius.toStringAsFixed(1)}°C');
   }
 
   // ==================== APGAR EVALUATION ====================
   /// Evaluates APGAR score and returns alert severity and message.
   static (String severity, String message) evaluateApgar(int? apgarScore) {
     if (apgarScore == null) {
-      return (AppConstants.alertSeverityInfo, 'APGAR non mesuré');
+      return (AppConstants.alertSeverityInfo, '📊 APGAR non mesuré');
     }
     
     if (apgarScore < AppConstants.apgarEmergency) {
@@ -80,7 +80,7 @@ class AlertThresholds {
       );
     }
     
-    return (AppConstants.alertSeverityInfo, 'APGAR normal: $apgarScore/10');
+    return (AppConstants.alertSeverityInfo, '✅ APGAR normal: $apgarScore/10');
   }
 
   // ==================== RESPIRATION EVALUATION ====================
@@ -92,7 +92,7 @@ class AlertThresholds {
       case 'faible irrégulière':
         return (AppConstants.alertSeverityWarning, '🟠 RESPIRATION FAIBLE/IRRÉGULIÈRE - Assistance respiratoire');
       default:
-        return (AppConstants.alertSeverityInfo, 'Respiration normale');
+        return (AppConstants.alertSeverityInfo, '✅ Respiration normale');
     }
   }
 
@@ -105,7 +105,7 @@ class AlertThresholds {
       case 'irrégulier':
         return (AppConstants.alertSeverityWarning, '🟠 CRI IRRÉGULIER - Surveillance');
       default:
-        return (AppConstants.alertSeverityInfo, 'Cri normal');
+        return (AppConstants.alertSeverityInfo, '✅ Cri normal');
     }
   }
 
@@ -118,7 +118,7 @@ class AlertThresholds {
       case 'faible':
         return (AppConstants.alertSeverityMedium, '🟡 TONUS FAIBLE - Surveillance');
       default:
-        return (AppConstants.alertSeverityInfo, 'Tonus normal');
+        return (AppConstants.alertSeverityInfo, '✅ Tonus normal');
     }
   }
 
@@ -198,10 +198,10 @@ class AlertThresholds {
   /// Returns the display label for a severity.
   static String getSeverityLabel(String severity) {
     switch (severity) {
-      case AppConstants.alertSeverityCritical: return 'Urgence';
-      case AppConstants.alertSeverityWarning: return 'Surveillance';
-      case AppConstants.alertSeverityMedium: return 'Attention';
-      default: return 'Stable';
+      case AppConstants.alertSeverityCritical: return '🔴 Urgence';
+      case AppConstants.alertSeverityWarning: return '🟠 Surveillance';
+      case AppConstants.alertSeverityMedium: return '🟡 Attention';
+      default: return '🟢 Stable';
     }
   }
 }

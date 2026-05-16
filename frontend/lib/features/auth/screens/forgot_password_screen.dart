@@ -1,10 +1,7 @@
-// frontend/lib/features/auth/screens/forgot_password_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../../../theme/colors.dart';
-import '../../../shared/extensions/context_ext.dart';
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -22,20 +19,34 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   Future<void> _sendResetEmail() async {
     final email = _emailController.text.trim();
     if (email.isEmpty) {
-      context.showErrorSnackBar('Veuillez entrer votre adresse email');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Veuillez entrer votre adresse email'),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
     if (!email.contains('@') || !email.contains('.')) {
-      context.showErrorSnackBar('Email invalide');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Email invalide'),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
 
     setState(() => _isLoading = true);
     try {
       await ref.read(authProvider.notifier).sendPasswordReset(email);
-      setState(() => _emailSent = true);
+      if (mounted) setState(() => _emailSent = true);
     } catch (e) {
-      context.showErrorSnackBar('Erreur: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -47,6 +58,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       appBar: AppBar(
         title: const Text('Mot de passe oublié'),
         backgroundColor: Colors.transparent,
+        elevation: 0,
       ),
       body: Padding(
         padding: const EdgeInsets.all(24),
@@ -54,12 +66,27 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 20),
-            const Icon(
-              Icons.lock_reset,
-              size: 64,
-              color: AppColors.medicalBlue,
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppColors.medicalBlue, AppColors.lightBlue],
+                ),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.medicalBlue.withValues(alpha: 0.3),
+                    blurRadius: 15,
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.lock_reset,
+                size: 40,
+                color: Colors.white,
+              ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             const Text(
               'Réinitialisation du mot de passe',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
@@ -74,20 +101,18 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.stableGreen
-                      .withValues(alpha: 0.1), // ✅ تم التعديل
-                  borderRadius: BorderRadius.circular(12),
+                  color: AppColors.stableGreen.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: AppColors.stableGreen),
                 ),
-                child:const  Row(
+                child: const Row(
                   children: [
-                    const Icon(Icons.check_circle,
-                        color: AppColors.stableGreen),
-                    const SizedBox(width: 12),
+                    Icon(Icons.check_circle, color: AppColors.stableGreen),
+                    SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         'Email envoyé! Vérifiez votre boîte de réception.',
-                        style: const TextStyle(color: AppColors.stableGreen),
+                        style: TextStyle(color: AppColors.stableGreen),
                       ),
                     ),
                   ],
@@ -96,12 +121,18 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             else ...[
               TextField(
                 controller: _emailController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Email',
-                  prefixIcon: Icon(Icons.email),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(16)),
+                  prefixIcon: const Icon(
+                    Icons.email,
+                    color: AppColors.medicalBlue,
                   ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey.withValues(alpha: 0.1),
                 ),
                 keyboardType: TextInputType.emailAddress,
               ),
@@ -114,18 +145,24 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.medicalBlue,
                     foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 50),
+                    minimumSize: const Size(double.infinity, 55),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(30),
                     ),
                   ),
-                  child: const Text('Envoyer l\'email'),
+                  child: const Text(
+                    'Envoyer l\'email',
+                    style: TextStyle(fontSize: 16),
+                  ),
                 ),
             ],
             const SizedBox(height: 16),
             TextButton(
-              onPressed: () => Navigator.of(context).pop(), // ✅ تم التعديل
-              child: const Text('Retour à la connexion'),
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                'Retour à la connexion',
+                style: TextStyle(color: AppColors.medicalBlue),
+              ),
             ),
           ],
         ),

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../../../theme/colors.dart';
-import '../../../shared/models/notification_model.dart';
+import 'package:neosante/theme/colors.dart';
+import 'package:neosante/shared/models/notification_model.dart';
 import '../providers/notification_provider.dart';
 
 class NotificationScreen extends ConsumerStatefulWidget {
@@ -23,45 +23,81 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
 
     // Apply filter
     final filteredNotifications = _applyFilter(notifications);
+    final isDesktop = MediaQuery.of(context).size.width > 800;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: const Text('🔔 Notifications'),
         backgroundColor: Colors.transparent,
+        elevation: 0,
         actions: [
+          // ✅ Bouton "Tout lire"
           if (notificationsState.unreadCount > 0)
             TextButton.icon(
               onPressed: () =>
                   ref.read(notificationsProvider.notifier).markAllAsRead(),
-              icon: const Icon(Icons.done_all),
-              label: const Text('Tout lire'),
+              icon: const Icon(Icons.done_all, size: 18),
+              label: Text('📖 Tout lire (${notificationsState.unreadCount})'),
             ),
+          // ✅ Menu filtre
           PopupMenuButton<String>(
+            icon: const Icon(Icons.filter_list),
             onSelected: (value) {
               setState(() => _selectedFilter = value);
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(value: 'all', child: Text('Toutes')),
-              const PopupMenuItem(value: 'unread', child: Text('Non lues')),
-              const PopupMenuItem(value: 'transfer', child: Text('Transferts')),
-              const PopupMenuItem(value: 'alert', child: Text('Alertes')),
+              const PopupMenuItem(
+                value: 'all',
+                child: Row(
+                  children: [
+                    Icon(Icons.list, size: 18),
+                    SizedBox(width: 8),
+                    Text('📋 Toutes'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'unread',
+                child: Row(
+                  children: [
+                    Icon(Icons.mark_email_unread, size: 18),
+                    SizedBox(width: 8),
+                    Text('📭 Non lues'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'transfer',
+                child: Row(
+                  children: [
+                    Icon(Icons.swap_horiz, size: 18),
+                    SizedBox(width: 8),
+                    Text('🚑 Transferts'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'alert',
+                child: Row(
+                  children: [
+                    Icon(Icons.warning, size: 18),
+                    SizedBox(width: 8),
+                    Text('⚠️ Alertes'),
+                  ],
+                ),
+              ),
             ],
           ),
+          const SizedBox(width: 8),
         ],
       ),
-      body: notificationsState.isLoading
+      body: notificationsState.isLoading && filteredNotifications.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : filteredNotifications.isEmpty
-              ? _buildEmptyState()
-              : ListView.builder(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  itemCount: filteredNotifications.length,
-                  itemBuilder: (context, index) {
-                    final notification = filteredNotifications[index];
-                    return _buildNotificationCard(notification);
-                  },
-                ),
+          ? _buildEmptyState(_selectedFilter)
+          : isDesktop
+          ? _buildDesktopGrid(filteredNotifications)
+          : _buildMobileList(filteredNotifications),
     );
   }
 
@@ -78,16 +114,37 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
     }
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(String filter) {
+    String message;
+    IconData icon;
+
+    switch (filter) {
+      case 'unread':
+        message = '📭 Aucune notification non lue';
+        icon = Icons.mark_email_unread;
+        break;
+      case 'transfer':
+        message = '🚑 Aucun transfert';
+        icon = Icons.swap_horiz;
+        break;
+      case 'alert':
+        message = '⚠️ Aucune alerte';
+        icon = Icons.warning;
+        break;
+      default:
+        message = '🔔 Aucune notification';
+        icon = Icons.notifications_none;
+    }
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.notifications_none, size: 80, color: Colors.grey[400]),
+          Icon(icon, size: 80, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
-            'Aucune notification',
-            style: TextStyle(color: Colors.grey[600]),
+            message,
+            style: TextStyle(color: Colors.grey[600], fontSize: 16),
           ),
           const SizedBox(height: 8),
           Text(
@@ -99,36 +156,78 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
     );
   }
 
+  Widget _buildDesktopGrid(List<NotificationModel> notifications) {
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 1.2,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+      ),
+      itemCount: notifications.length,
+      itemBuilder: (context, index) {
+        final notification = notifications[index];
+        return _buildNotificationCard(notification);
+      },
+    );
+  }
+
+  Widget _buildMobileList(List<NotificationModel> notifications) {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      itemCount: notifications.length,
+      itemBuilder: (context, index) {
+        final notification = notifications[index];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: _buildNotificationCard(notification),
+        );
+      },
+    );
+  }
+
   Widget _buildNotificationCard(NotificationModel notification) {
     final isRead = notification.isRead;
     final color = _getNotificationColor(notification.type);
-    final icon = _getNotificationIcon(notification.type);
+    //final icon = _getNotificationIcon(notification.type);
+    final emoji = _getNotificationEmoji(notification.type);
 
     return Card(
-      elevation: isRead ? 0 : 2,
-      margin: const EdgeInsets.only(bottom: 12),
-      // ✅ Correction: withOpacity → withOpacity
-      color: isRead ? null : color.withValues(alpha: 0.05),
+      elevation: isRead ? 1 : 4,
+      margin: EdgeInsets.zero,
+      color: isRead ? Colors.white : color.withValues(alpha: 0.05),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         side: !isRead ? BorderSide(color: color, width: 2) : BorderSide.none,
       ),
       child: InkWell(
         onTap: () => _handleNotificationTap(notification),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ✅ Icon with gradient background
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  // ✅ Correction: withOpacity → withOpacity
-                  color: color.withValues(alpha: 0.1),
+                  gradient: LinearGradient(
+                    colors: [color, color.withValues(alpha: 0.7)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                   shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-                child: Icon(icon, color: color, size: 24),
+                child: Text(emoji, style: const TextStyle(fontSize: 22)),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -139,69 +238,98 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            notification.title,
+                            '$emoji ${notification.title}',
                             style: TextStyle(
-                              fontWeight:
-                                  isRead ? FontWeight.normal : FontWeight.bold,
+                              fontWeight: isRead
+                                  ? FontWeight.w500
+                                  : FontWeight.bold,
+                              fontSize: 15,
                             ),
                           ),
                         ),
                         if (!isRead)
                           Container(
-                            width: 8,
-                            height: 8,
+                            width: 10,
+                            height: 10,
                             decoration: BoxDecoration(
                               color: color,
                               shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: color.withValues(alpha: 0.5),
+                                  blurRadius: 4,
+                                ),
+                              ],
                             ),
                           ),
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 8),
                     Text(
                       notification.body,
                       style: TextStyle(
                         fontSize: 13,
                         color: Colors.grey[600],
+                        height: 1.4,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     Row(
                       children: [
-                        Icon(Icons.access_time,
-                            size: 12, color: Colors.grey[500]),
-                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.access_time,
+                          size: 14,
+                          color: Colors.grey[500],
+                        ),
+                        const SizedBox(width: 6),
                         Text(
                           _formatDate(notification.createdAt),
-                          style:
-                              TextStyle(fontSize: 11, color: Colors.grey[500]),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[500],
+                          ),
                         ),
                         const Spacer(),
                         if (notification.type == 'transfer_request')
                           _buildActionButton(
-                            label: 'Voir',
+                            label: '👁️ Voir',
+                            icon: Icons.visibility,
                             onPressed: () =>
                                 _handleTransferRequest(notification),
                           ),
                         if (notification.type == 'emergency_alert')
                           _buildActionButton(
-                            label: 'Urgence',
+                            label: '🚨 Urgence',
+                            icon: Icons.warning,
                             color: AppColors.emergencyRed,
                             onPressed: () =>
                                 _handleEmergencyAlert(notification),
+                          ),
+                        if (notification.type == 'transfer_approved')
+                          _buildActionButton(
+                            label: '✅ Voir',
+                            icon: Icons.check_circle,
+                            color: AppColors.stableGreen,
+                            onPressed: () =>
+                                _handleNotificationTap(notification),
                           ),
                       ],
                     ),
                   ],
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.close, size: 20),
-                onPressed: () {
-                  ref
-                      .read(notificationsProvider.notifier)
-                      .deleteNotification(notification.id);
-                },
+              // ✅ Delete button
+              Container(
+                margin: const EdgeInsets.only(left: 8),
+                child: IconButton(
+                  icon: const Icon(Icons.close, size: 18, color: Colors.grey),
+                  onPressed: () {
+                    ref
+                        .read(notificationsProvider.notifier)
+                        .deleteNotification(notification.id);
+                  },
+                  splashRadius: 20,
+                ),
               ),
             ],
           ),
@@ -210,19 +338,29 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
     );
   }
 
-  Widget _buildActionButton(
-      {required String label,
-      Color color = AppColors.medicalBlue,
-      required VoidCallback onPressed}) {
-    return TextButton(
+  Widget _buildActionButton({
+    required String label,
+    required IconData icon,
+    Color color = AppColors.medicalBlue,
+    required VoidCallback onPressed,
+  }) {
+    return TextButton.icon(
       onPressed: onPressed,
-      style: TextButton.styleFrom(
-        // ✅ Correction: withOpacity → withOpacity
-        backgroundColor: color.withValues(alpha: 0.1),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        minimumSize: Size.zero,
+      icon: Icon(icon, size: 14, color: color),
+      label: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+        ),
       ),
-      child: Text(label, style: TextStyle(color: color, fontSize: 12)),
+      style: TextButton.styleFrom(
+        backgroundColor: color.withValues(alpha: 0.1),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        minimumSize: Size.zero,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      ),
     );
   }
 
@@ -239,7 +377,6 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
           notification.type == 'transfer_approved') {
         final dossierId = data['dossierId'];
         if (dossierId != null) {
-          // ✅ Correction: utiliser GoRouter.of(context)
           GoRouter.of(context).pushNamed('/dossiers/$dossierId');
         }
       } else if (notification.type == 'emergency_alert') {
@@ -254,12 +391,10 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
   }
 
   void _handleTransferRequest(NotificationModel notification) {
-    // ✅ Correction: utiliser GoRouter.of(context)
     GoRouter.of(context).pushNamed('/transfers');
   }
 
   void _handleEmergencyAlert(NotificationModel notification) {
-    // ✅ Correction: utiliser GoRouter.of(context)
     GoRouter.of(context).pushNamed('/alerts');
   }
 
@@ -278,18 +413,28 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
     }
   }
 
-  IconData _getNotificationIcon(String type) {
+  //IconData _getNotificationIcon(String type) {
+  // switch (type) {
+  //   case 'transfer_request': return Icons.swap_horiz;
+  //  case 'transfer_approved': return Icons.check_circle;
+  // case 'transfer_rejected': return Icons.cancel;
+  //  case 'emergency_alert': return Icons.warning;
+  // default: return Icons.notifications;
+  // }
+  //}
+
+  String _getNotificationEmoji(String type) {
     switch (type) {
       case 'transfer_request':
-        return Icons.swap_horiz;
+        return '🚑';
       case 'transfer_approved':
-        return Icons.check_circle;
+        return '✅';
       case 'transfer_rejected':
-        return Icons.cancel;
+        return '❌';
       case 'emergency_alert':
-        return Icons.warning;
+        return '🚨';
       default:
-        return Icons.notifications;
+        return '🔔';
     }
   }
 
@@ -305,6 +450,8 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
       return 'Il y a ${difference.inHours} h';
     } else if (difference.inDays == 1) {
       return 'Hier';
+    } else if (difference.inDays < 7) {
+      return 'Il y a ${difference.inDays} jours';
     } else {
       return DateFormat('dd/MM/yyyy', 'fr_FR').format(date);
     }

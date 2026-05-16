@@ -1,7 +1,9 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../../core/constants/app_constants.dart';
 import '../../../shared/models/alert_model.dart';
 import '../../../services/auth_service.dart';
@@ -11,6 +13,7 @@ class AlertState {
   final List<AlertModel> alerts;
   final bool isLoading;
   final String? error;
+
   final int criticalCount;
   final int warningCount;
   final int mediumCount;
@@ -19,7 +22,7 @@ class AlertState {
   const AlertState({
     this.alerts = const [],
     this.isLoading = false,
-    this.error = null,
+    this.error,
     this.criticalCount = 0,
     this.warningCount = 0,
     this.mediumCount = 0,
@@ -38,7 +41,7 @@ class AlertState {
     return AlertState(
       alerts: alerts ?? this.alerts,
       isLoading: isLoading ?? this.isLoading,
-      error: error ?? this.error,
+      error: error,
       criticalCount: criticalCount ?? this.criticalCount,
       warningCount: warningCount ?? this.warningCount,
       mediumCount: mediumCount ?? this.mediumCount,
@@ -46,183 +49,467 @@ class AlertState {
     );
   }
 
-  int get totalUnacknowledged => criticalCount + warningCount + mediumCount + infoCount;
+  int get totalUnacknowledged =>
+      criticalCount +
+      warningCount +
+      mediumCount +
+      infoCount;
+
   bool get hasCriticalAlerts => criticalCount > 0;
 }
 
-/// Alert provider
-final alertProvider = StateNotifierProvider<AlertNotifier, AlertState>((ref) {
-  return AlertNotifier();
-});
+/// Alert Provider
+final alertProvider =
+    StateNotifierProvider<AlertNotifier, AlertState>(
+  (ref) => AlertNotifier(),
+);
 
-/// Alert notifier for managing medical alerts
+/// Alert Notifier
 class AlertNotifier extends StateNotifier<AlertState> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final AuthService _authService = AuthService();
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _alertsSubscription;
+  final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance;
 
-  AlertNotifier() : super(const AlertState()) {
+  final AuthService _authService =
+      AuthService();
+
+  StreamSubscription<
+          QuerySnapshot<Map<String, dynamic>>>?
+      _alertsSubscription;
+
+  AlertNotifier()
+      : super(
+          const AlertState(
+            isLoading: true,
+          ),
+        ) {
     _loadAlerts();
   }
 
+  /// Load realtime alerts
   void _loadAlerts() {
-    _alertsSubscription = _firestore
-        .collection(AppConstants.alertsCollection)
-        .orderBy('timestamp', descending: true)
-        .snapshots()
-        .listen((snapshot) {
-      final alerts = snapshot.docs
-          .map((doc) => AlertModel.fromJson(doc.data(), doc.id))
-          .toList();
+    try {
+      _alertsSubscription?.cancel();
 
-      // Count unacknowledged alerts by severity
-      final critical = alerts
-          .where((a) => !a.isAcknowledged && a.severity == AppConstants.alertSeverityCritical)
-          .length;
-      final warning = alerts
-          .where((a) => !a.isAcknowledged && a.severity == AppConstants.alertSeverityWarning)
-          .length;
-      final medium = alerts
-          .where((a) => !a.isAcknowledged && a.severity == AppConstants.alertSeverityMedium)
-          .length;
-      final info = alerts
-          .where((a) => !a.isAcknowledged && a.severity == AppConstants.alertSeverityInfo)
-          .length;
+      _alertsSubscription = _firestore
+          .collection(
+            AppConstants.alertsCollection,
+          )
+          .orderBy(
+            'timestamp',
+            descending: true,
+          )
+          .snapshots()
+          .listen(
+        (snapshot) {
+          final alerts = snapshot.docs
+              .map(
+                (doc) => AlertModel.fromJson(
+                  doc.data(),
+                  doc.id,
+                ),
+              )
+              .toList();
 
-      state = state.copyWith(
-        alerts: alerts,
-        criticalCount: critical,
-        warningCount: warning,
-        mediumCount: medium,
-        infoCount: info,
+          final critical = alerts
+              .where(
+                (a) =>
+                    !a.isAcknowledged &&
+                    a.severity ==
+                        AppConstants
+                            .alertSeverityCritical,
+              )
+              .length;
+
+          final warning = alerts
+              .where(
+                (a) =>
+                    !a.isAcknowledged &&
+                    a.severity ==
+                        AppConstants
+                            .alertSeverityWarning,
+              )
+              .length;
+
+          final medium = alerts
+              .where(
+                (a) =>
+                    !a.isAcknowledged &&
+                    a.severity ==
+                        AppConstants
+                            .alertSeverityMedium,
+              )
+              .length;
+
+          final info = alerts
+              .where(
+                (a) =>
+                    !a.isAcknowledged &&
+                    a.severity ==
+                        AppConstants
+                            .alertSeverityInfo,
+              )
+              .length;
+
+          state = state.copyWith(
+            alerts: alerts,
+            isLoading: false,
+            error: null,
+            criticalCount: critical,
+            warningCount: warning,
+            mediumCount: medium,
+            infoCount: info,
+          );
+        },
+        onError: (error) {
+          state = state.copyWith(
+            isLoading: false,
+            error: error.toString(),
+          );
+
+          if (kDebugMode) {
+            debugPrint(
+              '❌ Error loading alerts: $error',
+            );
+          }
+        },
       );
-    });
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+      );
+
+      if (kDebugMode) {
+        debugPrint(
+          '❌ Alert Provider Error: $e',
+        );
+      }
+    }
   }
 
-  /// Acknowledge an alert
-  Future<void> acknowledgeAlert(String alertId, {String? actionTaken}) async {
-    final currentUser = _authService.currentFirebaseUser;
-    if (currentUser == null) return;
+  /// Acknowledge single alert
+  Future<void> acknowledgeAlert(
+    String alertId, {
+    String? actionTaken,
+  }) async {
+    final currentUser =
+        _authService.currentFirebaseUser;
+
+    if (currentUser == null) {
+      state = state.copyWith(
+        error: 'Utilisateur non connecté',
+      );
+      return;
+    }
 
     try {
       await _firestore
-          .collection(AppConstants.alertsCollection)
+          .collection(
+            AppConstants.alertsCollection,
+          )
           .doc(alertId)
           .update({
         'isAcknowledged': true,
-        'acknowledgedBy': currentUser.uid,
-        'acknowledgedAt': FieldValue.serverTimestamp(),
+        'acknowledgedBy':
+            currentUser.uid,
+        'acknowledgedAt':
+            FieldValue.serverTimestamp(),
         'actionTaken': actionTaken,
       });
     } catch (e) {
-      // ✅ استبدال print بـ debugPrint مع التحقق من وضع التصحيح
       if (kDebugMode) {
-        debugPrint('Error acknowledging alert: $e');
+        debugPrint(
+          '❌ Error acknowledging alert: $e',
+        );
       }
+
+      state = state.copyWith(
+        error: e.toString(),
+      );
+
       rethrow;
     }
   }
 
   /// Acknowledge multiple alerts
-  Future<void> acknowledgeMultipleAlerts(List<String> alertIds, {String? actionTaken}) async {
-    final currentUser = _authService.currentFirebaseUser;
-    if (currentUser == null) return;
+  Future<void>
+      acknowledgeMultipleAlerts(
+    List<String> alertIds, {
+    String? actionTaken,
+  }) async {
+    final currentUser =
+        _authService.currentFirebaseUser;
+
+    if (currentUser == null) {
+      state = state.copyWith(
+        error: 'Utilisateur non connecté',
+      );
+      return;
+    }
 
     try {
-      final batch = _firestore.batch();
+      final batch =
+          _firestore.batch();
+
       for (final alertId in alertIds) {
-        final ref = _firestore.collection(AppConstants.alertsCollection).doc(alertId);
+        final ref = _firestore
+            .collection(
+              AppConstants.alertsCollection,
+            )
+            .doc(alertId);
+
         batch.update(ref, {
           'isAcknowledged': true,
-          'acknowledgedBy': currentUser.uid,
-          'acknowledgedAt': FieldValue.serverTimestamp(),
-          'actionTaken': actionTaken,
+          'acknowledgedBy':
+              currentUser.uid,
+          'acknowledgedAt':
+              FieldValue.serverTimestamp(),
+          'actionTaken':
+              actionTaken ?? '',
         });
       }
+
       await batch.commit();
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('Error acknowledging multiple alerts: $e');
+        debugPrint(
+          '❌ Error acknowledging multiple alerts: $e',
+        );
       }
+
+      state = state.copyWith(
+        error: e.toString(),
+      );
+
       rethrow;
     }
   }
 
-  /// Acknowledge all alerts of a specific severity
-  Future<void> acknowledgeAllAlertsBySeverity(String severity) async {
-    final currentUser = _authService.currentFirebaseUser;
-    if (currentUser == null) return;
+  /// Acknowledge all alerts by severity
+  Future<void>
+      acknowledgeAllAlertsBySeverity(
+    String severity,
+  ) async {
+    final currentUser =
+        _authService.currentFirebaseUser;
+
+    if (currentUser == null) {
+      state = state.copyWith(
+        error: 'Utilisateur non connecté',
+      );
+      return;
+    }
 
     try {
-      final snapshot = await _firestore
-          .collection(AppConstants.alertsCollection)
-          .where('severity', isEqualTo: severity)
-          .where('isAcknowledged', isEqualTo: false)
-          .get();
+      final snapshot =
+          await _firestore
+              .collection(
+                AppConstants
+                    .alertsCollection,
+              )
+              .where(
+                'severity',
+                isEqualTo: severity,
+              )
+              .where(
+                'isAcknowledged',
+                isEqualTo: false,
+              )
+              .get();
 
-      final batch = _firestore.batch();
+      final batch =
+          _firestore.batch();
+
       for (final doc in snapshot.docs) {
-        batch.update(doc.reference, {
-          'isAcknowledged': true,
-          'acknowledgedBy': currentUser.uid,
-          'acknowledgedAt': FieldValue.serverTimestamp(),
-        });
+        batch.update(
+          doc.reference,
+          {
+            'isAcknowledged': true,
+            'acknowledgedBy':
+                currentUser.uid,
+            'acknowledgedAt':
+                FieldValue.serverTimestamp(),
+          },
+        );
       }
+
       await batch.commit();
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('Error acknowledging all alerts by severity: $e');
+        debugPrint(
+          '❌ Error acknowledge severity alerts: $e',
+        );
       }
+
+      state = state.copyWith(
+        error: e.toString(),
+      );
+
       rethrow;
     }
   }
 
-  /// Get alerts for a specific dossier
-  Future<List<AlertModel>> getAlertsForDossier(String dossierId) async {
+  /// Get alerts for dossier
+  Future<List<AlertModel>>
+      getAlertsForDossier(
+    String dossierId,
+  ) async {
     try {
-      final snapshot = await _firestore
-          .collection(AppConstants.alertsCollection)
-          .where('dossierId', isEqualTo: dossierId)
-          .orderBy('timestamp', descending: true)
-          .get();
+      final snapshot =
+          await _firestore
+              .collection(
+                AppConstants
+                    .alertsCollection,
+              )
+              .where(
+                'dossierId',
+                isEqualTo: dossierId,
+              )
+              .orderBy(
+                'timestamp',
+                descending: true,
+              )
+              .get();
 
       return snapshot.docs
-          .map((doc) => AlertModel.fromJson(doc.data(), doc.id))
+          .map(
+            (doc) => AlertModel.fromJson(
+              doc.data(),
+              doc.id,
+            ),
+          )
           .toList();
     } catch (e) {
+      if (kDebugMode) {
+        debugPrint(
+          '❌ Error getting dossier alerts: $e',
+        );
+      }
+
       return [];
     }
   }
 
-  /// Get unacknowledged alerts for a specific dossier
-  Stream<List<AlertModel>> streamUnacknowledgedAlertsForDossier(String dossierId) {
+  /// Stream dossier alerts
+  Stream<List<AlertModel>>
+      streamUnacknowledgedAlertsForDossier(
+    String dossierId,
+  ) {
     return _firestore
-        .collection(AppConstants.alertsCollection)
-        .where('dossierId', isEqualTo: dossierId)
-        .where('isAcknowledged', isEqualTo: false)
-        .orderBy('timestamp', descending: true)
+        .collection(
+          AppConstants.alertsCollection,
+        )
+        .where(
+          'dossierId',
+          isEqualTo: dossierId,
+        )
+        .where(
+          'isAcknowledged',
+          isEqualTo: false,
+        )
+        .orderBy(
+          'timestamp',
+          descending: true,
+        )
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => AlertModel.fromJson(doc.data(), doc.id))
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map(
+                (doc) =>
+                    AlertModel.fromJson(
+                  doc.data(),
+                  doc.id,
+                ),
+              )
+              .toList(),
+        );
   }
 
-  /// Get critical alerts stream (for real-time monitoring)
-  Stream<List<AlertModel>> streamCriticalAlerts() {
+  /// Stream critical alerts
+  Stream<List<AlertModel>>
+      streamCriticalAlerts() {
     return _firestore
-        .collection(AppConstants.alertsCollection)
-        .where('severity', isEqualTo: AppConstants.alertSeverityCritical)
-        .where('isAcknowledged', isEqualTo: false)
-        .orderBy('timestamp', descending: true)
+        .collection(
+          AppConstants.alertsCollection,
+        )
+        .where(
+          'severity',
+          isEqualTo: AppConstants
+              .alertSeverityCritical,
+        )
+        .where(
+          'isAcknowledged',
+          isEqualTo: false,
+        )
+        .orderBy(
+          'timestamp',
+          descending: true,
+        )
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => AlertModel.fromJson(doc.data(), doc.id))
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map(
+                (doc) =>
+                    AlertModel.fromJson(
+                  doc.data(),
+                  doc.id,
+                ),
+              )
+              .toList(),
+        );
+  }
+
+  /// Mark as read
+  Future<void> markAsRead(
+    String alertId,
+  ) async {
+    try {
+      await _firestore
+          .collection(
+            AppConstants.alertsCollection,
+          )
+          .doc(alertId)
+          .update({
+        'isRead': true,
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint(
+          '❌ Error mark as read: $e',
+        );
+      }
+
+      rethrow;
+    }
+  }
+
+  /// Delete alert
+  Future<void> deleteAlert(
+    String alertId,
+  ) async {
+    try {
+      await _firestore
+          .collection(
+            AppConstants.alertsCollection,
+          )
+          .doc(alertId)
+          .delete();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint(
+          '❌ Error deleting alert: $e',
+        );
+      }
+
+      rethrow;
+    }
   }
 
   /// Clear error
   void clearError() {
-    state = state.copyWith(error: null);
+    state = state.copyWith(
+      error: null,
+    );
   }
 
   @override
@@ -232,40 +519,134 @@ class AlertNotifier extends StateNotifier<AlertState> {
   }
 }
 
-/// Filtered alerts provider
-final filteredAlertsProvider = Provider<List<AlertModel>>((ref) {
-  final alerts = ref.watch(alertProvider).alerts;
-  final filter = ref.watch(alertFilterProvider);
+/// Filter Provider
+final alertFilterProvider =
+    StateProvider<String>(
+  (ref) => 'all',
+);
 
-  if (filter == 'all') return alerts;
-  if (filter == 'unacknowledged') {
-    return alerts.where((a) => !a.isAcknowledged).toList();
-  }
-  return alerts.where((a) => a.severity == filter).toList();
-});
+/// Filtered Alerts Provider
+final filteredAlertsProvider =
+    Provider<List<AlertModel>>(
+  (ref) {
+    final alerts =
+        ref.watch(alertProvider).alerts;
 
-/// Alert filter state provider
-final alertFilterProvider = StateProvider<String>((ref) => 'all');
+    final filter =
+        ref.watch(alertFilterProvider);
 
-/// Critical alerts count provider (for badge)
-final criticalAlertsCountProvider = StreamProvider<int>((ref) {
-  return FirebaseFirestore.instance
-      .collection(AppConstants.alertsCollection)
-      .where('severity', isEqualTo: AppConstants.alertSeverityCritical)
-      .where('isAcknowledged', isEqualTo: false)
-      .snapshots()
-      .map((snapshot) => snapshot.docs.length);
-});
+    switch (filter) {
+      case 'critical':
+        return alerts
+            .where(
+              (a) =>
+                  a.severity ==
+                  AppConstants
+                      .alertSeverityCritical,
+            )
+            .toList();
+
+      case 'warning':
+        return alerts
+            .where(
+              (a) =>
+                  a.severity ==
+                  AppConstants
+                      .alertSeverityWarning,
+            )
+            .toList();
+
+      case 'medium':
+        return alerts
+            .where(
+              (a) =>
+                  a.severity ==
+                  AppConstants
+                      .alertSeverityMedium,
+            )
+            .toList();
+
+      case 'info':
+        return alerts
+            .where(
+              (a) =>
+                  a.severity ==
+                  AppConstants
+                      .alertSeverityInfo,
+            )
+            .toList();
+
+      case 'unacknowledged':
+        return alerts
+            .where(
+              (a) =>
+                  !a.isAcknowledged,
+            )
+            .toList();
+
+      default:
+        return alerts;
+    }
+  },
+);
+
+/// Critical Alerts Count Provider
+final criticalAlertsCountProvider =
+    StreamProvider<int>(
+  (ref) {
+    return FirebaseFirestore.instance
+        .collection(
+          AppConstants.alertsCollection,
+        )
+        .where(
+          'severity',
+          isEqualTo: AppConstants
+              .alertSeverityCritical,
+        )
+        .where(
+          'isAcknowledged',
+          isEqualTo: false,
+        )
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs.length,
+        );
+  },
+);
 
 /// Alerts by dossier provider
-final alertsByDossierProvider = FutureProvider.family<List<AlertModel>, String>((ref, dossierId) async {
-  final snapshot = await FirebaseFirestore.instance
-      .collection(AppConstants.alertsCollection)
-      .where('dossierId', isEqualTo: dossierId)
-      .orderBy('timestamp', descending: true)
-      .get();
+final alertsByDossierProvider =
+    FutureProvider.family<
+        List<AlertModel>,
+        String>(
+  (
+    ref,
+    dossierId,
+  ) async {
+    final snapshot =
+        await FirebaseFirestore.instance
+            .collection(
+              AppConstants
+                  .alertsCollection,
+            )
+            .where(
+              'dossierId',
+              isEqualTo: dossierId,
+            )
+            .orderBy(
+              'timestamp',
+              descending: true,
+            )
+            .get();
 
-  return snapshot.docs
-      .map((doc) => AlertModel.fromJson(doc.data(), doc.id))
-      .toList();
-});
+    return snapshot.docs
+        .map(
+          (doc) => AlertModel.fromJson(
+            doc.data(),
+            doc.id,
+          ),
+        )
+        .toList();
+  },
+);

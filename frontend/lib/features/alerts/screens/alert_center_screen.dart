@@ -6,16 +6,17 @@ import '../../../shared/extensions/context_ext.dart';
 import '../../../core/constants/app_constants.dart';
 import '../providers/alert_provider.dart';
 import '../../../shared/models/alert_model.dart';
+import 'dart:math';
 
 class AlertCenterScreen extends ConsumerStatefulWidget {
   const AlertCenterScreen({super.key});
 
   @override
-ConsumerState<AlertCenterScreen> createState() => _AlertCenterScreenState();
+  ConsumerState<AlertCenterScreen> createState() => _AlertCenterScreenState();
 }
 
 class _AlertCenterScreenState extends ConsumerState<AlertCenterScreen> {
-  List<String> _selectedAlertIds = [];
+  final List<String> _selectedAlertIds = [];
   bool _isSelectionMode = false;
   String _actionText = '';
 
@@ -28,8 +29,10 @@ class _AlertCenterScreenState extends ConsumerState<AlertCenterScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Centre d\'alertes'),
+        title: const Text('🚨 Centre d\'alertes'),
         backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: false,
         actions: [
           if (_isSelectionMode)
             TextButton(
@@ -39,34 +42,35 @@ class _AlertCenterScreenState extends ConsumerState<AlertCenterScreen> {
                   _selectedAlertIds.clear();
                 });
               },
-              child: const Text('Annuler'),
+              child: const Text('❌ Annuler'),
             )
           else ...[
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.filter_list),
-              onSelected: (value) {
-                ref.read(alertFilterProvider.notifier).state = value;
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(value: 'all', child: Text('Toutes les alertes')),
-                const PopupMenuItem(value: 'unacknowledged', child: Text('Non traitées')),
-                const PopupMenuItem(
-                  value: AppConstants.alertSeverityCritical,
-                  child: Text('Urgences'),
+            // ✅ Filter button with badge
+            Stack(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.filter_list_rounded),
+                  onPressed: () => _showFilterDialog(),
+                  tooltip: 'Filtrer',
                 ),
-                const PopupMenuItem(
-                  value: AppConstants.alertSeverityWarning,
-                  child: Text('Surveillance'),
-                ),
-                const PopupMenuItem(
-                  value: AppConstants.alertSeverityMedium,
-                  child: Text('Attention'),
-                ),
+                if (alertFilter != 'all')
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: const BoxDecoration(
+                        color: AppColors.emergencyRed,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
               ],
             ),
             if (alertState.totalUnacknowledged > 0)
               IconButton(
-                icon: const Icon(Icons.done_all),
+                icon: const Icon(Icons.done_all_rounded),
                 onPressed: () => _showBulkActionsDialog(),
                 tooltip: 'Actions groupées',
               ),
@@ -76,21 +80,42 @@ class _AlertCenterScreenState extends ConsumerState<AlertCenterScreen> {
             ? PreferredSize(
                 preferredSize: const Size.fromHeight(60),
                 child: Container(
-                  color: AppColors.medicalBlue,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      Text(
-                        '${_selectedAlertIds.length} sélectionnée(s)',
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.check_circle, color: Colors.white),
-                        onPressed: () => _acknowledgeSelected(),
-                        tooltip: 'Marquer comme traitées',
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [AppColors.medicalBlue, AppColors.lightBlue],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.medicalBlue.withValues(alpha: 0.3),
+                        blurRadius: 8,
                       ),
                     ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: [
+                        Text(
+                          '📌 ${_selectedAlertIds.length} sélectionnée(s)',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const Spacer(),
+                        TextButton.icon(
+                          icon: const Icon(
+                            Icons.check_circle_rounded,
+                            color: Colors.white,
+                          ),
+                          label: const Text(
+                            'Traiter',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                          onPressed: _acknowledgeSelected,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               )
@@ -104,319 +129,175 @@ class _AlertCenterScreenState extends ConsumerState<AlertCenterScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Chip(
+                avatar: Icon(_getFilterIcon(alertFilter), size: 16),
                 label: Text(_getFilterLabel(alertFilter)),
                 onDeleted: () {
                   ref.read(alertFilterProvider.notifier).state = 'all';
                 },
                 deleteIcon: const Icon(Icons.close, size: 16),
+                backgroundColor: _getFilterColor(
+                  alertFilter,
+                ).withValues(alpha: 0.1),
               ),
             ),
           Expanded(
             child: alertState.isLoading && filteredAlerts.isEmpty
                 ? const Center(child: CircularProgressIndicator())
                 : filteredAlerts.isEmpty
-                    ? _buildEmptyState(alertFilter)
-                    : isDesktop
-                        ? _buildDesktopTable(filteredAlerts)
-                        : _buildMobileList(filteredAlerts),
+                ? _buildEmptyState(alertFilter)
+                : isDesktop
+                ? _buildDesktopTable(filteredAlerts)
+                : _buildMobileList(filteredAlerts),
           ),
         ],
       ),
+    );
+  }
+
+  void _showFilterDialog() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              '🔍 Filtrer les alertes',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            _buildFilterOption('📋 Toutes', 'all', Icons.list),
+            _buildFilterOption(
+              '📭 Non traitées',
+              'unacknowledged',
+              Icons.mark_email_unread,
+            ),
+            _buildFilterOption(
+              '🔴 Urgences',
+              AppConstants.alertSeverityCritical,
+              Icons.warning,
+            ),
+            _buildFilterOption(
+              '🟠 Surveillance',
+              AppConstants.alertSeverityWarning,
+              Icons.info,
+            ),
+            _buildFilterOption(
+              '🟡 Attention',
+              AppConstants.alertSeverityMedium,
+              Icons.notifications_active,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterOption(String label, String value, IconData icon) {
+    final isSelected = ref.read(alertFilterProvider) == value;
+    return ListTile(
+      leading: Icon(
+        icon,
+        color: isSelected ? AppColors.medicalBlue : Colors.grey,
+      ),
+      title: Text(
+        label,
+        style: TextStyle(
+          color: isSelected ? AppColors.medicalBlue : Colors.grey,
+        ),
+      ),
+      trailing: isSelected
+          ? const Icon(Icons.check_circle, color: AppColors.medicalBlue)
+          : null,
+      onTap: () {
+        ref.read(alertFilterProvider.notifier).state = value;
+        Navigator.pop(context);
+      },
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
   }
 
   Widget _buildSummaryCards(AlertState state) {
-    return Container(
+    return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          Expanded(
-            child: _buildSummaryCard(
-              'URGENCE',
-              state.criticalCount,
-              AppColors.emergencyRed,
-              onTap: () => ref.read(alertFilterProvider.notifier).state = AppConstants.alertSeverityCritical,
-            ),
+          _buildSummaryCard(
+            '🔴 URGENCE',
+            state.criticalCount,
+            AppColors.emergencyRed,
+            AppConstants.alertSeverityCritical,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _buildSummaryCard(
-              'SURVEILLANCE',
-              state.warningCount,
-              AppColors.warningOrange,
-              onTap: () => ref.read(alertFilterProvider.notifier).state = AppConstants.alertSeverityWarning,
-            ),
+          const SizedBox(width: 10),
+          _buildSummaryCard(
+            '🟠 SURVEILLANCE',
+            state.warningCount,
+            AppColors.warningOrange,
+            AppConstants.alertSeverityWarning,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _buildSummaryCard(
-              'ATTENTION',
-              state.mediumCount,
-              AppColors.mediumYellow,
-              onTap: () => ref.read(alertFilterProvider.notifier).state = AppConstants.alertSeverityMedium,
-            ),
+          const SizedBox(width: 10),
+          _buildSummaryCard(
+            '🟡 ATTENTION',
+            state.mediumCount,
+            AppColors.mediumYellow,
+            AppConstants.alertSeverityMedium,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _buildSummaryCard(
-              'INFORMATION',
-              state.infoCount,
-              AppColors.stableGreen,
-              onTap: () => ref.read(alertFilterProvider.notifier).state = AppConstants.alertSeverityInfo,
-            ),
+          const SizedBox(width: 10),
+          _buildSummaryCard(
+            '🟢 INFO',
+            state.infoCount,
+            AppColors.stableGreen,
+            AppConstants.alertSeverityInfo,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSummaryCard(String label, int count, Color color, {VoidCallback? onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Column(
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              count.toString(),
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDesktopTable(List<AlertModel> alerts) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columnSpacing: 20,
-        headingRowColor: WidgetStateProperty.resolveWith((states) => Colors.grey.shade100),
-        columns: [
-          if (_isSelectionMode) const DataColumn(label: Text('')),
-          const DataColumn(label: Text('Sévérité', style: TextStyle(fontWeight: FontWeight.bold))),
-          const DataColumn(label: Text('Patient', style: TextStyle(fontWeight: FontWeight.bold))),
-          const DataColumn(label: Text('Paramètre', style: TextStyle(fontWeight: FontWeight.bold))),
-          const DataColumn(label: Text('Valeur', style: TextStyle(fontWeight: FontWeight.bold))),
-          const DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
-          const DataColumn(label: Text('Statut', style: TextStyle(fontWeight: FontWeight.bold))),
-          const DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold))),
-        ],
-        rows: alerts.map((alert) => DataRow(
-          selected: _selectedAlertIds.contains(alert.id),
-          onSelectChanged: _isSelectionMode
-              ? (selected) {
-                  setState(() {
-                    if (selected == true) {
-                      _selectedAlertIds.add(alert.id);
-                    } else {
-                      _selectedAlertIds.remove(alert.id);
-                    }
-                  });
-                }
-              : null,
-          color: WidgetStateProperty.resolveWith((states) {
-            if (!alert.isAcknowledged && alert.requiresImmediateAttention) {
-              return AppColors.emergencyRed.withValues(alpha: 0.05);
-            }
-            return null;
-          }),
-          cells: [
-            if (_isSelectionMode)
-              DataCell(SizedBox(
-                width: 24,
-                child: Checkbox(
-                  value: _selectedAlertIds.contains(alert.id),
-                  onChanged: (selected) {
-                    setState(() {
-                      if (selected == true) {
-                        _selectedAlertIds.add(alert.id);
-                      } else {
-                        _selectedAlertIds.remove(alert.id);
-                      }
-                    });
-                  },
-                ),
-              )),
-            DataCell(_buildSeverityChip(alert.severity)),
-            DataCell(Text(alert.newbornName, style: const TextStyle(fontWeight: FontWeight.w500))),
-            DataCell(Text(_getParameterLabel(alert.parameter))),
-            DataCell(Text('${alert.value} ${_getParameterUnit(alert.parameter)}')),
-            DataCell(Text(DateFormat('dd/MM/yyyy HH:mm', 'fr_FR').format(alert.timestamp))),
-            DataCell(_buildStatusChip(alert.isAcknowledged)),
-            DataCell(Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (!alert.isAcknowledged)
-                  IconButton(
-                    icon: const Icon(Icons.done, size: 20, color: AppColors.stableGreen),
-                    onPressed: () => _acknowledgeAlert(alert),
-                    tooltip: 'Marquer comme traité',
-                  ),
-                IconButton(
-                  icon: const Icon(Icons.visibility, size: 20),
-                  onPressed: () => _showAlertDetails(alert),
-                  tooltip: 'Détails',
-                ),
-              ],
-            )),
-          ],
-        )).toList(),
-      ),
-    );
-  }
-
-  Widget _buildMobileList(List<AlertModel> alerts) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: alerts.length,
-      itemBuilder: (context, index) {
-        final alert = alerts[index];
-        return _buildAlertCard(alert);
-      },
-    );
-  }
-
-  Widget _buildAlertCard(AlertModel alert) {
-    final severityColor = _getSeverityColor(alert.severity);
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: alert.requiresImmediateAttention && !alert.isAcknowledged ? 4 : 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: alert.requiresImmediateAttention && !alert.isAcknowledged
-            ? BorderSide(color: severityColor, width: 2)
-            : BorderSide.none,
-      ),
+  Widget _buildSummaryCard(
+    String label,
+    int count,
+    Color color,
+    String filterValue,
+  ) {
+    return Expanded(
       child: InkWell(
-        onTap: () => _showAlertDetails(alert),
+        onTap: () => ref.read(alertFilterProvider.notifier).state = filterValue,
         borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                color.withValues(alpha: 0.12),
+                color.withValues(alpha: 0.05),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
+          ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: severityColor.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(_getSeverityIcon(alert.severity), size: 14, color: severityColor),
-                        const SizedBox(width: 4),
-                        Text(
-                          _getSeverityLabel(alert.severity),
-                          style: TextStyle(fontSize: 10, color: severityColor, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Spacer(),
-                  if (!alert.isAcknowledged)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.warningOrange.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Text(
-                        'Non traité',
-                        style: TextStyle(fontSize: 10, color: AppColors.warningOrange),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: severityColor.withValues(alpha: 0.2),
-                    child: const Icon(Icons.baby_changing_station, size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          alert.newbornName,
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          'Dossier: ${alert.dossierNumber}',
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: severityColor.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        alert.message,
-                        style: TextStyle(fontSize: 14, color: severityColor),
-                      ),
-                    ),
-                  ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: color,
                 ),
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Icon(Icons.access_time, size: 14, color: Colors.grey[500]),
-                  const SizedBox(width: 4),
-                  Text(
-                    DateFormat('dd/MM/yyyy HH:mm', 'fr_FR').format(alert.timestamp),
-                    style: TextStyle(fontSize: 11, color: Colors.grey[500]),
-                  ),
-                  const Spacer(),
-                  if (!alert.isAcknowledged)
-                    TextButton.icon(
-                      onPressed: () => _acknowledgeAlert(alert),
-                      icon: const Icon(Icons.done, size: 18),
-                      label: const Text('Traiter'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.stableGreen,
-                      ),
-                    ),
-                ],
+              const SizedBox(height: 6),
+              Text(
+                count.toString(),
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
               ),
             ],
           ),
@@ -425,23 +306,354 @@ class _AlertCenterScreenState extends ConsumerState<AlertCenterScreen> {
     );
   }
 
+  Widget _buildDesktopTable(List<AlertModel> alerts) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.all(16),
+      child: DataTable(
+        dataRowMinHeight: 70,
+        dataRowMaxHeight: 90,
+        columnSpacing: 24,
+        headingRowColor: WidgetStateProperty.resolveWith(
+          (states) => AppColors.medicalBlue.withValues(alpha: 0.08),
+        ),
+        headingTextStyle: const TextStyle(fontWeight: FontWeight.bold),
+        columns: [
+          if (_isSelectionMode) const DataColumn(label: Text('')),
+          const DataColumn(label: Text('⚠️ Sévérité')),
+          const DataColumn(label: Text('👶 Patient')),
+          const DataColumn(label: Text('📊 Paramètre')),
+          const DataColumn(label: Text('📈 Valeur')),
+          const DataColumn(label: Text('📅 Date')),
+          const DataColumn(label: Text('✅ Statut')),
+          const DataColumn(label: Text('🛠️ Actions')),
+        ],
+        rows: alerts
+            .map(
+              (alert) => DataRow(
+                selected: _selectedAlertIds.contains(alert.id),
+                onSelectChanged: _isSelectionMode
+                    ? (selected) {
+                        setState(() {
+                          if (!_selectedAlertIds.contains(alert.id)) {
+                               _selectedAlertIds.add(alert.id);
+                              } else {
+                            _selectedAlertIds.remove(alert.id);
+                          }
+                        });
+                      }
+                    : null,
+                color: WidgetStateProperty.resolveWith((states) {
+                  if (!alert.isAcknowledged &&
+                      alert.requiresImmediateAttention) {
+                    return AppColors.emergencyRed.withValues(alpha: 0.08);
+                  }
+                  return null;
+                }),
+                cells: [
+                  if (_isSelectionMode)
+                    DataCell(
+                      SizedBox(
+                        width: 24,
+                        child: Checkbox(
+                          value: _selectedAlertIds.contains(alert.id),
+                          onChanged: (selected) {
+                            setState(() {
+                              if (!_selectedAlertIds.contains(alert.id)) {
+                                     _selectedAlertIds.add(alert.id);
+                              } else {
+                                _selectedAlertIds.remove(alert.id);
+                              }
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                  DataCell(_buildSeverityChip(alert.severity)),
+                  DataCell(
+                    Text(
+                      alert.newbornName,
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                  DataCell(Text(_getParameterLabel(alert.parameter))),
+                  DataCell(
+                    Text(
+                      '${alert.value} ${_getParameterUnit(alert.parameter)}',
+                    ),
+                  ),
+                  DataCell(
+                    Text(
+                      DateFormat(
+                        'dd/MM/yyyy HH:mm',
+                        'fr_FR',
+                      ).format(alert.timestamp),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  DataCell(_buildStatusChip(alert.isAcknowledged)),
+                  DataCell(
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (!alert.isAcknowledged)
+                          IconButton(
+                            icon: const Icon(
+                              Icons.check_circle_rounded,
+                              color: AppColors.stableGreen,
+                            ),
+                            onPressed: () => _acknowledgeAlert(alert),
+                            tooltip: 'Traiter',
+                          ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.visibility_rounded,
+                            color: AppColors.medicalBlue,
+                          ),
+                          onPressed: () => _showAlertDetails(alert),
+                          tooltip: 'Détails',
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
+
+  Widget _buildMobileList(List<AlertModel> alerts) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: alerts.length,
+      itemBuilder: (context, index) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: _buildAlertCard(alerts[index]),
+      ),
+    );
+  }
+
+  Widget _buildAlertCard(AlertModel alert) {
+    final severityColor = _getSeverityColor(alert.severity);
+    final isUnacknowledged = !alert.isAcknowledged;
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.white, severityColor.withValues(alpha: 0.03)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: isUnacknowledged && alert.requiresImmediateAttention
+                ? severityColor.withValues(alpha: 0.3)
+                : Colors.black.withValues(alpha: 0.05),
+            blurRadius: isUnacknowledged && alert.requiresImmediateAttention
+                ? 12
+                : 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(
+          color: severityColor.withValues(alpha: 0.3),
+          width: isUnacknowledged && alert.requiresImmediateAttention
+              ? 1.5
+              : 0.5,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _showAlertDetails(alert),
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: severityColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _getSeverityIcon(alert.severity),
+                            size: 14,
+                            color: severityColor,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _getSeverityLabel(alert.severity),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: severityColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Spacer(),
+                    if (isUnacknowledged)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.warningOrange.withValues(
+                            alpha: 0.15,
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text(
+                          '⏳ Non traité',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: AppColors.warningOrange,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: severityColor.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.baby_changing_station,
+                        size: 22,
+                        color: AppColors.medicalBlue,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            alert.newbornName,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            '📁 Dossier: ${alert.dossierNumber}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: severityColor.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          alert.message,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: severityColor,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.access_time_rounded,
+                      size: 14,
+                      color: Colors.grey[500],
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      DateFormat(
+                        'dd/MM/yyyy HH:mm',
+                        'fr_FR',
+                      ).format(alert.timestamp),
+                      style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                    ),
+                    const Spacer(),
+                    if (isUnacknowledged)
+                      TextButton.icon(
+                        onPressed: () => _acknowledgeAlert(alert),
+                        icon: const Icon(Icons.check_circle_rounded, size: 18),
+                        label: const Text('Traiter'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.stableGreen,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildEmptyState(String filter) {
+    String emoji;
+    String message;
+    if (filter == 'unacknowledged') {
+      emoji = '📭';
+      message = 'Aucune alerte non traitée';
+    } else if (filter == AppConstants.alertSeverityCritical) {
+      emoji = '✅';
+      message = 'Aucune urgence';
+    } else {
+      emoji = '🔔';
+      message = 'Aucune alerte';
+    }
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.notifications_off, size: 64, color: Colors.grey[400]),
+          Text(emoji, style: const TextStyle(fontSize: 64)),
           const SizedBox(height: 16),
           Text(
-            _getEmptyMessage(filter),
-            style: TextStyle(color: Colors.grey[600]),
+            message,
+            style: TextStyle(color: Colors.grey[600], fontSize: 16),
           ),
           const SizedBox(height: 8),
-          TextButton(
-            onPressed: () {
-              ref.read(alertFilterProvider.notifier).state = 'all';
-            },
-            child: const Text('Voir toutes les alertes'),
+          TextButton.icon(
+            onPressed: () =>
+                ref.read(alertFilterProvider.notifier).state = 'all',
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Voir toutes les alertes'),
           ),
         ],
       ),
@@ -451,19 +663,23 @@ class _AlertCenterScreenState extends ConsumerState<AlertCenterScreen> {
   Widget _buildSeverityChip(String severity) {
     final color = _getSeverityColor(severity);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(12),
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(_getSeverityIcon(severity), size: 14, color: color),
-          const SizedBox(width: 4),
+          const SizedBox(width: 6),
           Text(
             _getSeverityLabel(severity),
-            style: TextStyle(fontSize: 11, color: color),
+            style: TextStyle(
+              fontSize: 11,
+              color: color,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),
@@ -475,43 +691,61 @@ class _AlertCenterScreenState extends ConsumerState<AlertCenterScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: isAcknowledged
-            ? AppColors.stableGreen.withValues(alpha: 0.2)
-            : AppColors.warningOrange.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(12),
+            ? AppColors.stableGreen.withValues(alpha: 0.15)
+            : AppColors.warningOrange.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        isAcknowledged ? 'Traité' : 'En attente',
+        isAcknowledged ? '✅ Traité' : '⏳ En attente',
         style: TextStyle(
           fontSize: 11,
-          color: isAcknowledged ? AppColors.stableGreen : AppColors.warningOrange,
+          color: isAcknowledged
+              ? AppColors.stableGreen
+              : AppColors.warningOrange,
+          fontWeight: FontWeight.w500,
         ),
       ),
     );
   }
 
   Future<void> _acknowledgeAlert(AlertModel alert) async {
-    final action = await _showActionDialog(alert);
-    await ref.read(alertProvider.notifier).acknowledgeAlert(alert.id, actionTaken: action);
-    if (mounted) {
-      context.showSuccessSnackBar('Alerte marquée comme traitée');
-    }
-  }
+  _actionText = '';
+
+  final action = await _showActionDialog(alert);
+
+  if (!mounted) return;
+
+  await ref
+      .read(alertProvider.notifier)
+      .acknowledgeAlert(
+        alert.id,
+        actionTaken: action,
+      );
+
+  if (!mounted) return;
+
+  context.showSuccessSnackBar(
+    '✅ Alerte marquée comme traitée',
+  );
+}
 
   Future<void> _acknowledgeSelected() async {
     if (_selectedAlertIds.isEmpty) return;
     final confirmed = await context.showConfirmationDialog(
-      title: 'Traiter les alertes',
+      title: '✅ Traiter les alertes',
       message: 'Marquer ${_selectedAlertIds.length} alerte(s) comme traitées ?',
       confirmText: 'Confirmer',
     );
     if (confirmed != true) return;
-    await ref.read(alertProvider.notifier).acknowledgeMultipleAlerts(_selectedAlertIds);
+    await ref
+        .read(alertProvider.notifier)
+        .acknowledgeMultipleAlerts(_selectedAlertIds);
     setState(() {
       _isSelectionMode = false;
       _selectedAlertIds.clear();
     });
     if (mounted) {
-      context.showSuccessSnackBar('Alertes traitées');
+      context.showSuccessSnackBar('✅ Alertes traitées');
     }
   }
 
@@ -519,43 +753,49 @@ class _AlertCenterScreenState extends ConsumerState<AlertCenterScreen> {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) => Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Actions groupées', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              '⚡ Actions groupées',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.select_all),
-              title: const Text('Activer la sélection multiple'),
+            _buildBulkOption(
+              icon: Icons.select_all_rounded,
+              title: 'Sélection multiple',
+              color: AppColors.medicalBlue,
               onTap: () {
                 Navigator.pop(context);
                 setState(() => _isSelectionMode = true);
               },
             ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.warning, color: AppColors.emergencyRed),
-              title: const Text('Toutes les urgences'),
+            _buildBulkOption(
+              icon: Icons.warning_rounded,
+              title: 'Toutes les urgences',
+              color: AppColors.emergencyRed,
               onTap: () {
                 Navigator.pop(context);
                 _acknowledgeAllBySeverity(AppConstants.alertSeverityCritical);
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.info, color: AppColors.warningOrange),
-              title: const Text('Toutes les surveillances'),
+            _buildBulkOption(
+              icon: Icons.info_rounded,
+              title: 'Toutes les surveillances',
+              color: AppColors.warningOrange,
               onTap: () {
                 Navigator.pop(context);
                 _acknowledgeAllBySeverity(AppConstants.alertSeverityWarning);
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.notifications_active),
-              title: const Text('Toutes les alertes non traitées'),
+            _buildBulkOption(
+              icon: Icons.done_all_rounded,
+              title: 'Toutes les alertes non traitées',
+              color: AppColors.stableGreen,
               onTap: () {
                 Navigator.pop(context);
                 _acknowledgeAllUnacknowledged();
@@ -567,38 +807,66 @@ class _AlertCenterScreenState extends ConsumerState<AlertCenterScreen> {
     );
   }
 
+  Widget _buildBulkOption({
+    required IconData icon,
+    required String title,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: color),
+      ),
+      title: Text(title),
+      onTap: onTap,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    );
+  }
+
   Future<void> _acknowledgeAllBySeverity(String severity) async {
     final confirmed = await context.showConfirmationDialog(
-      title: 'Traiter toutes les alertes',
-      message: 'Marquer toutes les alertes de type "${_getSeverityLabel(severity)}" comme traitées ?',
+      title: '✅ Traiter toutes les alertes',
+      message:
+          'Marquer toutes les alertes "${_getSeverityLabel(severity)}" comme traitées ?',
       confirmText: 'Confirmer',
     );
     if (confirmed != true) return;
-    await ref.read(alertProvider.notifier).acknowledgeAllAlertsBySeverity(severity);
-    if (mounted) {
-      context.showSuccessSnackBar('Alertes traitées');
-    }
+    await ref
+        .read(alertProvider.notifier)
+        .acknowledgeAllAlertsBySeverity(severity);
+    if (mounted) context.showSuccessSnackBar('✅ Alertes traitées');
   }
 
   Future<void> _acknowledgeAllUnacknowledged() async {
     final confirmed = await context.showConfirmationDialog(
-      title: 'Traiter toutes les alertes',
+      title: '✅ Traiter toutes les alertes',
       message: 'Marquer toutes les alertes non traitées comme traitées ?',
       confirmText: 'Confirmer',
     );
     if (confirmed != true) return;
-    final unacknowledgedAlerts = ref.read(alertProvider).alerts.where((a) => !a.isAcknowledged).map((a) => a.id).toList();
-    await ref.read(alertProvider.notifier).acknowledgeMultipleAlerts(unacknowledgedAlerts);
-    if (mounted) {
-      context.showSuccessSnackBar('Toutes les alertes ont été traitées');
-    }
+    final unacknowledgedAlerts = ref
+        .read(alertProvider)
+        .alerts
+        .where((a) => !a.isAcknowledged)
+        .map((a) => a.id)
+        .toList();
+    await ref
+        .read(alertProvider.notifier)
+        .acknowledgeMultipleAlerts(unacknowledgedAlerts);
+    if (mounted)
+      context.showSuccessSnackBar('✅ Toutes les alertes ont été traitées');
   }
 
   Future<String?> _showActionDialog(AlertModel alert) async {
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Action effectuée'),
+        title: const Text('📝 Action effectuée'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -621,6 +889,9 @@ class _AlertCenterScreenState extends ConsumerState<AlertCenterScreen> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, _actionText),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.stableGreen,
+            ),
             child: const Text('Valider'),
           ),
         ],
@@ -633,22 +904,22 @@ class _AlertCenterScreenState extends ConsumerState<AlertCenterScreen> {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.6,
+        initialChildSize: 0.65,
         minChildSize: 0.4,
         maxChildSize: 0.9,
         expand: false,
         builder: (context, scrollController) => SingleChildScrollView(
           controller: scrollController,
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Center(
                 child: Container(
-                  width: 40,
+                  width: 50,
                   height: 4,
                   decoration: BoxDecoration(
                     color: Colors.grey[300],
@@ -662,27 +933,59 @@ class _AlertCenterScreenState extends ConsumerState<AlertCenterScreen> {
                   _buildSeverityChip(alert.severity),
                   const Spacer(),
                   Text(
-                    DateFormat('dd/MM/yyyy HH:mm', 'fr_FR').format(alert.timestamp),
+                    DateFormat(
+                      'dd/MM/yyyy HH:mm',
+                      'fr_FR',
+                    ).format(alert.timestamp),
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              Text(
-                alert.message,
-                style: TextStyle(fontSize: 16, color: _getSeverityColor(alert.severity)),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: _getSeverityColor(
+                    alert.severity,
+                  ).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  alert.message,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: _getSeverityColor(alert.severity),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
               const Divider(height: 32),
-              _buildDetailRow('Patient', alert.newbornName),
-              _buildDetailRow('Numéro dossier', alert.dossierNumber),
-              _buildDetailRow('Paramètre', _getParameterLabel(alert.parameter)),
-              _buildDetailRow('Valeur', '${alert.value} ${_getParameterUnit(alert.parameter)}'),
-              _buildDetailRow('Statut', alert.isAcknowledged ? 'Traité' : 'En attente'),
-              if (alert.acknowledgedBy != null) _buildDetailRow('Traité par', alert.acknowledgedBy!),
+              _buildDetailRow('👶 Patient', alert.newbornName),
+              _buildDetailRow('📁 Numéro dossier', alert.dossierNumber),
+              _buildDetailRow(
+                '📊 Paramètre',
+                _getParameterLabel(alert.parameter),
+              ),
+              _buildDetailRow(
+                '📈 Valeur',
+                '${alert.value} ${_getParameterUnit(alert.parameter)}',
+              ),
+              _buildDetailRow(
+                '✅ Statut',
+                alert.isAcknowledged ? 'Traité' : 'En attente',
+              ),
+              if (alert.acknowledgedBy != null)
+                _buildDetailRow('👤 Traité par', alert.acknowledgedBy!),
               if (alert.acknowledgedAt != null)
-                _buildDetailRow('Date traitement', DateFormat('dd/MM/yyyy HH:mm', 'fr_FR').format(alert.acknowledgedAt!)),
+                _buildDetailRow(
+                  '📅 Date traitement',
+                  DateFormat(
+                    'dd/MM/yyyy HH:mm',
+                    'fr_FR',
+                  ).format(alert.acknowledgedAt!),
+                ),
               if (alert.actionTaken != null && alert.actionTaken!.isNotEmpty)
-                _buildDetailRow('Action entreprise', alert.actionTaken!),
+                _buildDetailRow('📝 Action', alert.actionTaken!),
               const SizedBox(height: 24),
               if (!alert.isAcknowledged)
                 SizedBox(
@@ -692,9 +995,15 @@ class _AlertCenterScreenState extends ConsumerState<AlertCenterScreen> {
                       Navigator.pop(context);
                       _acknowledgeAlert(alert);
                     },
-                    icon: const Icon(Icons.done),
+                    icon: const Icon(Icons.check_circle_rounded),
                     label: const Text('Marquer comme traité'),
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.stableGreen),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.stableGreen,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
                   ),
                 ),
             ],
@@ -711,8 +1020,15 @@ class _AlertCenterScreenState extends ConsumerState<AlertCenterScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 120,
-            child: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey)),
+            width: 130,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+              ),
+            ),
           ),
           Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
         ],
@@ -722,67 +1038,115 @@ class _AlertCenterScreenState extends ConsumerState<AlertCenterScreen> {
 
   String _getFilterLabel(String filter) {
     switch (filter) {
-      case 'unacknowledged': return 'Alertes non traitées';
-      case 'critical': return 'Urgences';
-      case 'warning': return 'Surveillance';
-      case 'medium': return 'Attention';
-      case 'info': return 'Information';
-      default: return 'Toutes';
+      case 'unacknowledged':
+        return '📭 Non traitées';
+      case AppConstants.alertSeverityCritical:
+        return '🔴 Urgences';
+      case AppConstants.alertSeverityWarning:
+        return '🟠 Surveillance';
+      case AppConstants.alertSeverityMedium:
+        return '🟡 Attention';
+      default:
+        return '📋 Toutes';
     }
   }
 
-  String _getEmptyMessage(String filter) {
-    if (filter == 'unacknowledged') return 'Aucune alerte non traitée';
-    if (filter == 'critical') return 'Aucune urgence';
-    if (filter == 'all') return 'Aucune alerte';
-    return 'Aucune alerte pour ce filtre';
+  IconData _getFilterIcon(String filter) {
+    switch (filter) {
+      case 'unacknowledged':
+        return Icons.mark_email_unread;
+      case AppConstants.alertSeverityCritical:
+        return Icons.warning;
+      case AppConstants.alertSeverityWarning:
+        return Icons.info;
+      case AppConstants.alertSeverityMedium:
+        return Icons.notifications_active;
+      default:
+        return Icons.list;
+    }
+  }
+
+  Color _getFilterColor(String filter) {
+    switch (filter) {
+      case AppConstants.alertSeverityCritical:
+        return AppColors.emergencyRed;
+      case AppConstants.alertSeverityWarning:
+        return AppColors.warningOrange;
+      case AppConstants.alertSeverityMedium:
+        return AppColors.mediumYellow;
+      default:
+        return AppColors.medicalBlue;
+    }
   }
 
   Color _getSeverityColor(String severity) {
     switch (severity) {
-      case AppConstants.alertSeverityCritical: return AppColors.emergencyRed;
-      case AppConstants.alertSeverityWarning: return AppColors.warningOrange;
-      case AppConstants.alertSeverityMedium: return AppColors.mediumYellow;
-      default: return AppColors.stableGreen;
+      case AppConstants.alertSeverityCritical:
+        return AppColors.emergencyRed;
+      case AppConstants.alertSeverityWarning:
+        return AppColors.warningOrange;
+      case AppConstants.alertSeverityMedium:
+        return AppColors.mediumYellow;
+      default:
+        return AppColors.stableGreen;
     }
   }
 
   IconData _getSeverityIcon(String severity) {
     switch (severity) {
-      case AppConstants.alertSeverityCritical: return Icons.warning;
-      case AppConstants.alertSeverityWarning: return Icons.info;
-      case AppConstants.alertSeverityMedium: return Icons.notifications_active;
-      default: return Icons.check_circle;
+      case AppConstants.alertSeverityCritical:
+        return Icons.warning_rounded;
+      case AppConstants.alertSeverityWarning:
+        return Icons.info_rounded;
+      case AppConstants.alertSeverityMedium:
+        return Icons.notifications_active_rounded;
+      default:
+        return Icons.check_circle_rounded;
     }
   }
 
   String _getSeverityLabel(String severity) {
     switch (severity) {
-      case AppConstants.alertSeverityCritical: return 'Urgence';
-      case AppConstants.alertSeverityWarning: return 'Surveillance';
-      case AppConstants.alertSeverityMedium: return 'Attention';
-      default: return 'Information';
+      case AppConstants.alertSeverityCritical:
+        return 'Urgence';
+      case AppConstants.alertSeverityWarning:
+        return 'Surveillance';
+      case AppConstants.alertSeverityMedium:
+        return 'Attention';
+      default:
+        return 'Information';
     }
   }
 
   String _getParameterLabel(String parameter) {
     switch (parameter) {
-      case 'glucose': return 'Glycémie';
-      case 'temperature': return 'Température';
-      case 'apgar': return 'APGAR';
-      case 'respiration': return 'Respiration';
-      case 'cri': return 'Cri';
-      case 'tonus': return 'Tonus';
-      default: return parameter;
+      case 'glucose':
+        return 'Glycémie';
+      case 'temperature':
+        return 'Température';
+      case 'apgar':
+        return 'APGAR';
+      case 'respiration':
+        return 'Respiration';
+      case 'cri':
+        return 'Cri';
+      case 'tonus':
+        return 'Tonus';
+      default:
+        return parameter;
     }
   }
 
   String _getParameterUnit(String parameter) {
     switch (parameter) {
-      case 'glucose': return 'mg/dL';
-      case 'temperature': return '°C';
-      case 'apgar': return '/10';
-      default: return '';
+      case 'glucose':
+        return 'mg/dL';
+      case 'temperature':
+        return '°C';
+      case 'apgar':
+        return '/10';
+      default:
+        return '';
     }
   }
 }

@@ -6,7 +6,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../shared/extensions/string_ext.dart';
 import '../../../../services/notification_service.dart';
 
-/// Step 6: Transfer workflow (to neonatology, with mother, or other)
+/// Step 6: Transfer workflow
 class Step6Transfer extends StatefulWidget {
   final String dossierId;
   final Function(Map<String, dynamic>) onChanged;
@@ -76,7 +76,6 @@ class _Step6TransferState extends State<Step6Transfer> {
 
     try {
       if (_transferOption == 'En néonatalogie') {
-        // Find doctor by email
         final usersSnapshot = await FirebaseFirestore.instance
             .collection(AppConstants.usersCollection)
             .where('email', isEqualTo: _doctorEmail)
@@ -94,7 +93,6 @@ class _Step6TransferState extends State<Step6Transfer> {
         final doctor = usersSnapshot.docs.first;
         final doctorId = doctor.id;
 
-        // Create transfer request
         final transferRef = FirebaseFirestore.instance
             .collection(AppConstants.transfersCollection)
             .doc();
@@ -114,7 +112,6 @@ class _Step6TransferState extends State<Step6Transfer> {
           'requestedAt': FieldValue.serverTimestamp(),
         });
 
-        // Send notification to doctor
         await NotificationService.notifyTransferRequest(
           doctorId,
           widget.initialData['dossierNumber'] ?? 'N/A',
@@ -126,7 +123,6 @@ class _Step6TransferState extends State<Step6Transfer> {
           _requestMessage = '✅ Demande de transfert envoyée au médecin';
         });
       } else {
-        // Direct transfer without approval
         setState(() {
           _transferStatus = AppConstants.transferStatusApproved;
           _requestMessage = '✅ Transfert enregistré avec succès';
@@ -146,146 +142,105 @@ class _Step6TransferState extends State<Step6Transfer> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionHeader(
-              '🚑 Transfert du nouveau-né', Icons.local_hospital),
-          const SizedBox(height: 16),
-
-          // Transfer options
-          Card(
-            elevation: 2,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Choisissez la destination :',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildTransferOption(
-                    title: 'En néonatalogie',
-                    subtitle: 'Transfert vers le service de néonatalogie',
-                    value: 'En néonatalogie',
-                    icon: Icons.local_hospital,
-                    color: const Color(0xFF2B7A78),
-                  ),
-                  _buildTransferOption(
-                    title: 'Avec sa mère',
-                    subtitle: 'Retour à la chambre maternelle',
-                    value: 'Avec sa mère',
-                    icon: Icons.family_restroom,
-                    color: AppColors.stableGreen,
-                  ),
-                  _buildTransferOption(
-                    title: 'Autre',
-                    subtitle: 'Transfert vers un autre service',
-                    value: 'Autre',
-                    icon: Icons.other_houses,
-                    color: AppColors.warningOrange,
-                  ),
-                ],
+          // ✅ التنسيق الرئيسي
+          _buildSectionCard(
+            title: '🚑 Transfert du nouveau-né',
+            icon: Icons.local_hospital,
+            children: [
+              const Text(
+                'Choisissez la destination :',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
-            ),
+              const SizedBox(height: 16),
+              _buildTransferOption(
+                emoji: '🏥',
+                title: 'Service Néonatalogie',
+                subtitle: 'Transfert vers le service de néonatalogie',
+                value: 'En néonatalogie',
+                color: const Color(0xFF2B7A78),
+              ),
+              const SizedBox(height: 8),
+              _buildTransferOption(
+                emoji: '👩‍👧',
+                title: 'Retour à la maternité',
+                subtitle: 'Retour à la chambre maternelle',
+                value: 'Avec sa mère',
+                color: AppColors.stableGreen,
+              ),
+              const SizedBox(height: 8),
+              _buildTransferOption(
+                emoji: '🏥',
+                title: 'Autre service',
+                subtitle: 'Transfert vers un autre service',
+                value: 'Autre',
+                color: AppColors.warningOrange,
+              ),
+            ],
           ),
+          const SizedBox(height: 20),
 
-          const SizedBox(height: 24),
-
-          // Doctor email field (only for neonatology transfer)
-          if (_transferOption == 'En néonatalogie') ...[
-            _buildSectionHeader('👨‍⚕️ Médecin destinataire', Icons.email),
-            const SizedBox(height: 8),
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: _doctorEmailController,
-                      decoration: const InputDecoration(
-                        labelText: 'Email du médecin',
-                        prefixIcon: Icon(Icons.email),
-                        hintText: 'medecin@hopital.fr',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(12)),
-                        ),
-                      ),
-                      keyboardType: TextInputType.emailAddress,
-                      onChanged: (value) {
-                        _doctorEmail = value;
-                        _notifyParent();
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _transferReasonController,
-                      decoration: const InputDecoration(
-                        labelText: 'Motif du transfert (optionnel)',
-                        prefixIcon: Icon(Icons.description),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(12)),
-                        ),
-                      ),
-                      maxLines: 2,
-                      onChanged: (value) {
-                        _transferReason = value;
-                        _notifyParent();
-                      },
-                    ),
-                  ],
+          // ✅ Formulaire selon l'option
+          if (_transferOption == 'En néonatalogie')
+            _buildSectionCard(
+              title: '👨‍⚕️ Médecin destinataire',
+              icon: Icons.email,
+              children: [
+                _buildTextField(
+                  controller: _doctorEmailController,
+                  label: 'Email du médecin',
+                  icon: Icons.email,
+                  hint: 'medecin@hopital.fr',
+                  onChanged: (value) {
+                    _doctorEmail = value;
+                    _notifyParent();
+                  },
                 ),
-              ),
-            ),
-          ],
-
-          // Transfer reason for other options
-          if (_transferOption == 'Autre') ...[
-            const SizedBox(height: 16),
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: TextField(
+                const SizedBox(height: 16),
+                _buildTextField(
                   controller: _transferReasonController,
-                  decoration: const InputDecoration(
-                    labelText: 'Précisez la destination / motif',
-                    prefixIcon: Icon(Icons.description),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(12)),
-                    ),
-                  ),
+                  label: 'Motif du transfert (optionnel)',
+                  icon: Icons.description,
                   maxLines: 2,
                   onChanged: (value) {
                     _transferReason = value;
                     _notifyParent();
                   },
                 ),
-              ),
+              ],
             ),
-          ],
 
-          const SizedBox(height: 24),
+          if (_transferOption == 'Autre')
+            _buildSectionCard(
+              title: '📝 Détails',
+              icon: Icons.description,
+              children: [
+                _buildTextField(
+                  controller: _transferReasonController,
+                  label: 'Précisez la destination / motif',
+                  icon: Icons.location_on,
+                  maxLines: 2,
+                  onChanged: (value) {
+                    _transferReason = value;
+                    _notifyParent();
+                  },
+                ),
+              ],
+            ),
 
-          // Status display
+          // ✅ حالة الطلب
           if (_transferStatus != 'none')
             Container(
-              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.symmetric(vertical: 16),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: _transferStatus == AppConstants.transferStatusPending
                     ? Colors.orange.withValues(alpha: 0.1)
                     : AppColors.stableGreen.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: _transferStatus == AppConstants.transferStatusPending
                       ? Colors.orange
@@ -306,10 +261,11 @@ class _Step6TransferState extends State<Step6Transfer> {
                   Expanded(
                     child: Text(
                       _transferStatus == AppConstants.transferStatusPending
-                          ? 'Transfert en attente d\'approbation'
-                          : 'Transfert approuvé - Dossier accessible au médecin',
+                          ? '⏳ Transfert en attente d\'approbation'
+                          : '✓ Transfert approuvé - Dossier accessible au médecin',
                       style: TextStyle(
-                        color: _transferStatus ==
+                        color:
+                            _transferStatus ==
                                 AppConstants.transferStatusPending
                             ? Colors.orange
                             : AppColors.stableGreen,
@@ -322,7 +278,7 @@ class _Step6TransferState extends State<Step6Transfer> {
 
           if (_requestMessage != null)
             Padding(
-              padding: const EdgeInsets.only(top: 12),
+              padding: const EdgeInsets.only(top: 8),
               child: Text(
                 _requestMessage!,
                 style: TextStyle(
@@ -335,7 +291,7 @@ class _Step6TransferState extends State<Step6Transfer> {
 
           const SizedBox(height: 24),
 
-          // Send button
+          // ✅ زر الإرسال
           if (_transferStatus == 'none' ||
               _transferStatus == AppConstants.transferStatusRejected)
             SizedBox(
@@ -351,25 +307,26 @@ class _Step6TransferState extends State<Step6Transfer> {
                     : const Icon(Icons.send),
                 label: Text(
                   _transferOption == 'En néonatalogie'
-                      ? 'Envoyer la demande de transfert'
-                      : 'Valider le transfert',
+                      ? '📤 Envoyer la demande de transfert'
+                      : '✅ Valider le transfert',
+                  style: const TextStyle(fontSize: 16),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.medicalBlue,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
               ),
             ),
 
-          // Info message for already transferred
           if (_transferStatus == AppConstants.transferStatusPending)
             Padding(
               padding: const EdgeInsets.only(top: 16),
               child: Center(
                 child: Text(
-                  'Le médecin recevra une notification',
+                  '🔔 Le médecin recevra une notification',
                   style: TextStyle(color: Colors.grey[600]),
                 ),
               ),
@@ -379,35 +336,68 @@ class _Step6TransferState extends State<Step6Transfer> {
     );
   }
 
-  Widget _buildSectionHeader(String title, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, color: AppColors.medicalBlue, size: 24),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+  Widget _buildSectionCard({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.medicalBlue.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: AppColors.medicalBlue, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            ...children,
+          ],
         ),
-      ],
+      ),
     );
   }
 
   Widget _buildTransferOption({
+    required String emoji,
     required String title,
     required String subtitle,
     required String value,
-    required IconData icon,
     required Color color,
   }) {
-    //final isSelected = _transferOption == value;
-    return RadioListTile<String>(
-      title: Text(title, style:const TextStyle(fontWeight: FontWeight.w500)),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
-      value: value,
-      groupValue: _transferOption,
-      onChanged: (val) {
+    final isSelected = _transferOption == value;
+    return InkWell(
+      onTap: () {
         setState(() {
-          _transferOption = val!;
+          _transferOption = value;
           if (_transferOption != 'En néonatalogie') {
             _transferStatus = 'none';
             _requestMessage = null;
@@ -415,16 +405,79 @@ class _Step6TransferState extends State<Step6Transfer> {
         });
         _notifyParent();
       },
-      activeColor: color,
-      secondary: Container(
-        padding: const EdgeInsets.all(8),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          shape: BoxShape.circle,
+          color: isSelected
+              ? color.withValues(alpha: 0.1)
+              : Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? color : Colors.grey.shade300,
+            width: isSelected ? 2 : 1,
+          ),
         ),
-        child: Icon(icon, color: color),
+        child: Row(
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 28)),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: isSelected ? color : Colors.black87,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected) Icon(Icons.check_circle, color: color, size: 24),
+          ],
+        ),
       ),
-      contentPadding: EdgeInsets.zero,
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    IconData? icon,
+    String? hint,
+    int maxLines = 1,
+    required Function(String) onChanged,
+  }) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: icon != null
+            ? Icon(icon, color: AppColors.medicalBlue)
+            : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.medicalBlue, width: 2),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
+      ),
+      maxLines: maxLines,
+      onChanged: onChanged,
     );
   }
 

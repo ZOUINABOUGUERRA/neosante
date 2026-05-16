@@ -50,21 +50,22 @@ class UserModel extends Equatable {
   }
 
   /// Converts UserModel to Firestore document (JSON).
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'firstName': firstName,
-      'lastName': lastName,
-      'email': email,
-      'role': role,
-      'profileImage': profileImage,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'lastLoginAt': lastLoginAt != null ? Timestamp.fromDate(lastLoginAt!) : null,
-      'isActive': isActive,
-      'phoneNumber': phoneNumber,
-      'hospitalId': hospitalId,
-    };
-  }
+ Map<String, dynamic> toJson() {
+  return {
+    'id': id,
+    'firstName': firstName,
+    'lastName': lastName,
+    'email': email,
+    'role': role,
+    'profileImage': profileImage,
+    'createdAt': Timestamp.fromDate(createdAt),
+    if (lastLoginAt != null)
+      'lastLoginAt': Timestamp.fromDate(lastLoginAt!),
+    'isActive': isActive,
+    'phoneNumber': phoneNumber,
+    'hospitalId': hospitalId,
+  };
+}
 
   /// Returns the full name (first + last).
   String get fullName => '$firstName $lastName';
@@ -184,9 +185,14 @@ extension UserModelListExtension on List<UserModel> {
 
   /// Finds a user by email (case-insensitive).
   UserModel? findByEmail(String email) {
+  try {
     return firstWhere(
-      (user) => user.email.toLowerCase() == email.toLowerCase(),
-      orElse: () => throw Exception('User not found'),
+      (user) =>
+          user.email.toLowerCase() ==
+          email.toLowerCase(),
     );
+  } catch (_) {
+    return null;
   }
+}
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../../theme/colors.dart';
-//import '../../../../core/constants/app_constants.dart';
 
 /// Step 5: Resuscitation workflow (Airway → Breathing → Circulation → Disability)
 class Step5Resuscitation extends StatefulWidget {
@@ -18,21 +17,18 @@ class Step5Resuscitation extends StatefulWidget {
 }
 
 class _Step5ResuscitationState extends State<Step5Resuscitation> {
-  // Airway
-  String _airway = 'stable';
+  // ✅ استخدام bool بدلاً من String لـ Oui/Non
+  bool _airwayStable = true;
   bool _showBreathing = false;
 
-  // Breathing
-  String _breathing = 'VPP';
   bool _breathingStable = true;
   bool _showCirculation = false;
+  String _breathingType = 'VPP';
 
-  // Circulation
-  String _circulation = 'VPP + compression thoracique';
   bool _circulationStable = true;
   bool _showDisability = false;
+  String _circulationType = 'VPP + compression thoracique';
 
-  // Disability
   String _medications = '';
   String _doses = '';
   String _disabilityObservations = '';
@@ -46,16 +42,16 @@ class _Step5ResuscitationState extends State<Step5Resuscitation> {
   }
 
   void _loadInitialData() {
-    _airway = widget.initialData['airway'] ?? 'stable';
-    _showBreathing = _airway == 'unstable';
+    _airwayStable = widget.initialData['airwayStable'] ?? true;
+    _showBreathing = !_airwayStable;
 
-    _breathing = widget.initialData['breathing'] ?? 'VPP';
     _breathingStable = widget.initialData['breathingStable'] ?? true;
+    _breathingType = widget.initialData['breathingType'] ?? 'VPP';
     _showCirculation = !_breathingStable && _showBreathing;
 
-    _circulation =
-        widget.initialData['circulation'] ?? 'VPP + compression thoracique';
     _circulationStable = widget.initialData['circulationStable'] ?? true;
+    _circulationType =
+        widget.initialData['circulationType'] ?? 'VPP + compression thoracique';
     _showDisability = !_circulationStable && _showCirculation;
 
     _medications = widget.initialData['disabilityMedications'] ?? '';
@@ -68,11 +64,11 @@ class _Step5ResuscitationState extends State<Step5Resuscitation> {
 
   void _notifyParent() {
     widget.onChanged({
-      'airway': _airway,
-      'breathing': _breathing,
+      'airwayStable': _airwayStable,
       'breathingStable': _breathingStable,
-      'circulation': _circulation,
+      'breathingType': _breathingType,
       'circulationStable': _circulationStable,
+      'circulationType': _circulationType,
       'disabilityMedications': _medications,
       'disabilityDoses': _doses,
       'disabilityObservations': _disabilityObservations,
@@ -84,120 +80,78 @@ class _Step5ResuscitationState extends State<Step5Resuscitation> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Airway Section
-          _buildSectionHeader('1. AIRWAY (Voies aériennes)', Icons.air,
-              const Color(0xFFFF3B3B)),
-          const SizedBox(height: 8),
-          _buildWorkflowCard(
-            title: 'Évaluation des voies aériennes',
+          // 1. AIRWAY
+          _buildStepCard(
+            number: '1',
+            title: 'AIRWAY',
+            subtitle: 'Voies aériennes',
+            color: const Color(0xFFFF3B3B),
             child: Column(
               children: [
-                _buildRadioTile(
-                  title: '✅ Stable - Respiration spontanée efficace',
-                  value: 'stable',
-                  groupValue: _airway,
+                _buildYesNoCard(
+                  question: 'Les voies aériennes sont-elles stables ?',
+                  value: _airwayStable,
                   onChanged: (value) {
                     setState(() {
-                      _airway = value!;
-                      _showBreathing = false;
-                      _showCirculation = false;
-                      _showDisability = false;
+                      _airwayStable = value;
+                      _showBreathing = !value;
+                      if (_airwayStable) {
+                        _showCirculation = false;
+                        _showDisability = false;
+                      }
                     });
                     _notifyParent();
                   },
-                  color: AppColors.stableGreen,
-                ),
-                const SizedBox(height: 8),
-                _buildRadioTile(
-                  title: '⚠️ Instable - Obstruction / Apnée',
-                  value: 'unstable',
-                  groupValue: _airway,
-                  onChanged: (value) {
-                    setState(() {
-                      _airway = value!;
-                      _showBreathing = true;
-                    });
-                    _notifyParent();
-                  },
-                  color: AppColors.emergencyRed,
                 ),
               ],
             ),
           ),
 
           if (_showBreathing) ...[
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
-            // Breathing Section
-            _buildSectionHeader('2. BREATHING (Ventilation)', Icons.air,
-                const Color(0xFFFFA500)),
-            const SizedBox(height: 8),
-            _buildWorkflowCard(
-              title: 'Support ventilatoire',
+            // 2. BREATHING
+            _buildStepCard(
+              number: '2',
+              title: 'BREATHING',
+              subtitle: 'Ventilation',
+              color: const Color(0xFFFFA500),
               child: Column(
                 children: [
                   _buildDropdown(
                     label: 'Type de support',
-                    value: _breathing,
+                    value: _breathingType,
                     items: const [
                       DropdownMenuItem(
-                          value: 'VPP',
-                          child: Text('VPP (Ventilation au masque)')),
+                        value: 'VPP',
+                        child: Text('VPP (Ventilation au masque)'),
+                      ),
+                      DropdownMenuItem(value: 'CPAP', child: Text('CPAP')),
                       DropdownMenuItem(
-                          value: 'CPAP',
-                          child: Text('CPAP (Pression positive continue)')),
-                      DropdownMenuItem(
-                          value: 'Ajuster O2',
-                          child: Text('Ajuster O2 (Oxygénothérapie)')),
+                        value: 'Ajuster O2',
+                        child: Text('Ajuster O2'),
+                      ),
                     ],
                     onChanged: (value) {
-                      setState(() => _breathing = value!);
+                      setState(() => _breathingType = value!);
                       _notifyParent();
                     },
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'État après intervention :',
-                    style: TextStyle(fontWeight: FontWeight.w500),
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildRadioTile(
-                          title: '✅ Stabilisé',
-                          value: true,
-                          groupValue: _breathingStable,
-                          onChanged: (value) {
-                            setState(() {
-                              _breathingStable = value!;
-                              _showCirculation = false;
-                              _showDisability = false;
-                            });
-                            _notifyParent();
-                          },
-                          color: AppColors.stableGreen,
-                        ),
-                      ),
-                      Expanded(
-                        child: _buildRadioTile(
-                          title: '⚠️ Instable',
-                          value: false,
-                          groupValue: _breathingStable,
-                          onChanged: (value) {
-                            setState(() {
-                              _breathingStable = value!;
-                              _showCirculation = true;
-                            });
-                            _notifyParent();
-                          },
-                          color: AppColors.emergencyRed,
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 20),
+                  _buildYesNoCard(
+                    question: 'État stabilisé après intervention ?',
+                    value: _breathingStable,
+                    onChanged: (value) {
+                      setState(() {
+                        _breathingStable = value;
+                        _showCirculation = !value;
+                      });
+                      _notifyParent();
+                    },
                   ),
                 ],
               ),
@@ -205,19 +159,19 @@ class _Step5ResuscitationState extends State<Step5Resuscitation> {
           ],
 
           if (_showCirculation) ...[
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
-            // Circulation Section
-            _buildSectionHeader('3. CIRCULATION (Circulation)', Icons.favorite,
-                const Color(0xFFFF3B3B)),
-            const SizedBox(height: 8),
-            _buildWorkflowCard(
-              title: 'Support circulatoire',
+            // 3. CIRCULATION
+            _buildStepCard(
+              number: '3',
+              title: 'CIRCULATION',
+              subtitle: 'Circulation',
+              color: const Color(0xFFFF3B3B),
               child: Column(
                 children: [
                   _buildDropdown(
                     label: 'Intervention',
-                    value: _circulation,
+                    value: _circulationType,
                     items: const [
                       DropdownMenuItem(
                         value: 'VPP + compression thoracique',
@@ -229,48 +183,21 @@ class _Step5ResuscitationState extends State<Step5Resuscitation> {
                       ),
                     ],
                     onChanged: (value) {
-                      setState(() => _circulation = value!);
+                      setState(() => _circulationType = value!);
                       _notifyParent();
                     },
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'État après intervention :',
-                    style: TextStyle(fontWeight: FontWeight.w500),
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildRadioTile(
-                          title: '✅ Stabilisé',
-                          value: true,
-                          groupValue: _circulationStable,
-                          onChanged: (value) {
-                            setState(() {
-                              _circulationStable = value!;
-                              _showDisability = false;
-                            });
-                            _notifyParent();
-                          },
-                          color: AppColors.stableGreen,
-                        ),
-                      ),
-                      Expanded(
-                        child: _buildRadioTile(
-                          title: '⚠️ Instable',
-                          value: false,
-                          groupValue: _circulationStable,
-                          onChanged: (value) {
-                            setState(() {
-                              _circulationStable = value!;
-                              _showDisability = true;
-                            });
-                            _notifyParent();
-                          },
-                          color: AppColors.emergencyRed,
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 20),
+                  _buildYesNoCard(
+                    question: 'État stabilisé après intervention ?',
+                    value: _circulationStable,
+                    onChanged: (value) {
+                      setState(() {
+                        _circulationStable = value;
+                        _showDisability = !value;
+                      });
+                      _notifyParent();
+                    },
                   ),
                 ],
               ),
@@ -278,21 +205,21 @@ class _Step5ResuscitationState extends State<Step5Resuscitation> {
           ],
 
           if (_showDisability) ...[
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
-            // Disability Section
-            _buildSectionHeader('4. DISABILITY (Médicaments)', Icons.medication,
-                const Color(0xFFFFD700)),
-            const SizedBox(height: 8),
-            _buildWorkflowCard(
-              title: 'Interventions médicamenteuses',
+            // 4. DISABILITY
+            _buildStepCard(
+              number: '4',
+              title: 'DISABILITY',
+              subtitle: 'Médicaments',
+              color: const Color(0xFFFFD700),
               child: Column(
                 children: [
                   _buildTextField(
                     controller: TextEditingController(text: _medications),
                     label: 'Médicaments administrés',
                     icon: Icons.medication,
-                    hint: 'Ex: Adrénaline, Naloxone, Bicarbonate...',
+                    hint: 'Ex: Adrénaline, Naloxone...',
                     maxLines: 2,
                     onChanged: (value) {
                       _medications = value;
@@ -312,9 +239,10 @@ class _Step5ResuscitationState extends State<Step5Resuscitation> {
                   ),
                   const SizedBox(height: 16),
                   _buildTextField(
-                    controller:
-                        TextEditingController(text: _disabilityObservations),
-                    label: 'Observations cliniques',
+                    controller: TextEditingController(
+                      text: _disabilityObservations,
+                    ),
+                    label: 'Observations',
                     icon: Icons.note,
                     hint: 'Évolution, réponse au traitement...',
                     maxLines: 3,
@@ -328,12 +256,14 @@ class _Step5ResuscitationState extends State<Step5Resuscitation> {
             ),
           ],
 
-          const SizedBox(height: 24),
-          _buildSectionHeader(
-              '👨‍⚕️ Personnel présent', Icons.people, AppColors.medicalBlue),
-          const SizedBox(height: 8),
-          _buildWorkflowCard(
-            title: 'Médecins et sages-femmes intervenants',
+          const SizedBox(height: 20),
+
+          // Personnel présent
+          _buildStepCard(
+            number: '👥',
+            title: 'PERSONNEL',
+            subtitle: 'Intervenants',
+            color: AppColors.medicalBlue,
             child: Row(
               children: [
                 Expanded(
@@ -367,51 +297,71 @@ class _Step5ResuscitationState extends State<Step5Resuscitation> {
     );
   }
 
-  Widget _buildSectionHeader(String title, IconData icon, Color color) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: color, size: 20),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildWorkflowCard({
+  Widget _buildStepCard({
+    required String number,
     required String title,
+    required String subtitle,
+    required Color color,
     required Widget child,
   }) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border(left: BorderSide(color: color, width: 6)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.darkGray,
-              ),
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      number,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 20),
             child,
           ],
         ),
@@ -419,21 +369,74 @@ class _Step5ResuscitationState extends State<Step5Resuscitation> {
     );
   }
 
-  Widget _buildRadioTile({
-    required String title,
-    required dynamic value,
-    required dynamic groupValue,
-    required Function(dynamic) onChanged,
-    required Color color,
+  Widget _buildYesNoCard({
+    required String question,
+    required bool value,
+    required Function(bool) onChanged,
   }) {
-    return RadioListTile<dynamic>(
-      title: Text(title),
-      value: value,
-      groupValue: groupValue,
-      onChanged: onChanged,
-      activeColor: color,
-      contentPadding: EdgeInsets.zero,
-      dense: true,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          Text(
+            question,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildYesNoButton(
+                label: 'Oui',
+                isSelected: value == true,
+                color: AppColors.stableGreen,
+                onTap: () => onChanged(true),
+              ),
+              const SizedBox(width: 20),
+              _buildYesNoButton(
+                label: 'Non',
+                isSelected: value == false,
+                color: AppColors.emergencyRed,
+                onTap: () => onChanged(false),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildYesNoButton({
+    required String label,
+    required bool isSelected,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 80,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? color : Colors.white,
+          borderRadius: BorderRadius.circular(40),
+          border: Border.all(color: color, width: 1.5),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.white : color,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -447,7 +450,14 @@ class _Step5ResuscitationState extends State<Step5Resuscitation> {
       initialValue: value,
       decoration: InputDecoration(
         labelText: label,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
       ),
       items: items,
       onChanged: onChanged,
@@ -466,9 +476,18 @@ class _Step5ResuscitationState extends State<Step5Resuscitation> {
       controller: controller,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: icon != null ? Icon(icon) : null,
         hintText: hint,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        prefixIcon: icon != null
+            ? Icon(icon, color: AppColors.medicalBlue)
+            : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.medicalBlue, width: 2),
+        ),
       ),
       maxLines: maxLines,
       onChanged: onChanged,

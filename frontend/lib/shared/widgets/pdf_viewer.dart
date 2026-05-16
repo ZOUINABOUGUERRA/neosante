@@ -1,5 +1,3 @@
-// frontend/lib/shared/widgets/pdf_viewer.dart
-
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -37,8 +35,9 @@ class _PdfViewerState extends State<PdfViewer> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title ?? 'Document PDF'),
+        title: Text(widget.title ?? '📄 Document PDF'),
         backgroundColor: Colors.transparent,
+        elevation: 0,
         actions: _buildActions(),
       ),
       body: _buildBody(),
@@ -51,7 +50,7 @@ class _PdfViewerState extends State<PdfViewer> {
     if (widget.showPrintButton) {
       actions.add(
         IconButton(
-          icon: const Icon(Icons.print),
+          icon: const Icon(Icons.print_rounded),
           onPressed: _printPdf,
           tooltip: 'Imprimer',
         ),
@@ -61,7 +60,7 @@ class _PdfViewerState extends State<PdfViewer> {
     if (widget.showShareButton) {
       actions.add(
         IconButton(
-          icon: const Icon(Icons.share),
+          icon: const Icon(Icons.share_rounded),
           onPressed: _sharePdf,
           tooltip: 'Partager',
         ),
@@ -71,7 +70,7 @@ class _PdfViewerState extends State<PdfViewer> {
     if (widget.showDownloadButton) {
       actions.add(
         IconButton(
-          icon: const Icon(Icons.download),
+          icon: const Icon(Icons.download_rounded),
           onPressed: _downloadPdf,
           tooltip: 'Télécharger',
         ),
@@ -87,8 +86,8 @@ class _PdfViewerState extends State<PdfViewer> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-             const Icon(
-              Icons.error_outline,
+            const Icon(
+              Icons.error_outline_rounded,
               size: 64,
               color: AppColors.emergencyRed,
             ),
@@ -99,14 +98,20 @@ class _PdfViewerState extends State<PdfViewer> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
+            ElevatedButton.icon(
               onPressed: () {
                 setState(() {
                   _error = null;
                   _isLoading = true;
                 });
               },
-              child: const Text('Réessayer'),
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('🔄 Réessayer'),
+              style: ElevatedButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
             ),
           ],
         ),
@@ -119,11 +124,10 @@ class _PdfViewerState extends State<PdfViewer> {
           canChangePageFormat: true,
           canChangeOrientation: true,
           canDebug: false,
-          // ✅ إزالة maxScaleWidth (غير مدعوم)
+          // ✅ تم إزالة maxScaleWidth لأنها غير مدعومة
           build: (format) async {
             setState(() => _isLoading = false);
-            final pdfBytes = await _loadPdf();
-            return pdfBytes;
+            return await _loadPdf();
           },
           pdfFileName: widget.title?.replaceAll(' ', '_') ?? 'document.pdf',
         ),
@@ -138,7 +142,6 @@ class _PdfViewerState extends State<PdfViewer> {
     );
   }
 
-  // ✅ إصلاح: إضافة نوع Uint8List والاستيراد المناسب
   Future<Uint8List> _loadPdf() async {
     try {
       final response = await http.get(Uri.parse(widget.pdfUrl));
@@ -148,7 +151,7 @@ class _PdfViewerState extends State<PdfViewer> {
         throw Exception('Failed to load PDF: ${response.statusCode}');
       }
     } catch (e) {
-      setState(() => _error = 'Erreur lors du chargement du PDF: $e');
+      setState(() => _error = '❌ Erreur lors du chargement du PDF: $e');
       return Uint8List(0);
     }
   }
@@ -161,7 +164,7 @@ class _PdfViewerState extends State<PdfViewer> {
         name: widget.title ?? 'Document',
       );
     } catch (e) {
-      _showErrorSnackBar('Erreur lors de l\'impression: $e');
+      _showErrorSnackBar('❌ Erreur lors de l\'impression: $e');
     }
   }
 
@@ -173,7 +176,7 @@ class _PdfViewerState extends State<PdfViewer> {
         filename: widget.title?.replaceAll(' ', '_') ?? 'document.pdf',
       );
     } catch (e) {
-      _showErrorSnackBar('Erreur lors du partage: $e');
+      _showErrorSnackBar('❌ Erreur lors du partage: $e');
     }
   }
 
@@ -189,9 +192,9 @@ class _PdfViewerState extends State<PdfViewer> {
       final file = File('${directory.path}/$fileName');
       await file.writeAsBytes(pdfBytes);
 
-      _showSuccessSnackBar('PDF téléchargé avec succès');
+      _showSuccessSnackBar('✅ PDF téléchargé avec succès');
     } catch (e) {
-      _showErrorSnackBar('Erreur lors du téléchargement: $e');
+      _showErrorSnackBar('❌ Erreur lors du téléchargement: $e');
     }
   }
 
@@ -200,6 +203,8 @@ class _PdfViewerState extends State<PdfViewer> {
       SnackBar(
         content: Text(message),
         backgroundColor: AppColors.emergencyRed,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -209,6 +214,8 @@ class _PdfViewerState extends State<PdfViewer> {
       SnackBar(
         content: Text(message),
         backgroundColor: AppColors.stableGreen,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -234,7 +241,6 @@ class SimplePdfViewer extends StatelessWidget {
         canChangeOrientation: false,
         canDebug: false,
         build: (format) async {
-          // ✅ إصلاح: استخدام http.get بدلاً من HttpClient
           final response = await http.get(Uri.parse(pdfUrl));
           if (response.statusCode == 200) {
             return response.bodyBytes;
@@ -266,16 +272,23 @@ class PdfThumbnail extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
         width: width,
         height: height,
         decoration: BoxDecoration(
           color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Colors.grey[300]!),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        child:const Column(
+        child: const Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
@@ -283,9 +296,9 @@ class PdfThumbnail extends StatelessWidget {
               size: 48,
               color: AppColors.emergencyRed,
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'PDF',
+            SizedBox(height: 8),
+            Text(
+              '📄 PDF',
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ],
@@ -305,17 +318,20 @@ Future<void> showPdfViewerDialog(
     context: context,
     builder: (context) => Dialog(
       insetPadding: const EdgeInsets.all(16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: SizedBox(
         width: MediaQuery.of(context).size.width * 0.9,
         height: MediaQuery.of(context).size.height * 0.8,
         child: Column(
           children: [
             AppBar(
-              title: Text(title ?? 'Document PDF'),
+              title: Text(title ?? '📄 Document PDF'),
               automaticallyImplyLeading: false,
+              backgroundColor: Colors.transparent,
+              elevation: 0,
               actions: [
                 IconButton(
-                  icon: const Icon(Icons.close),
+                  icon: const Icon(Icons.close_rounded),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],

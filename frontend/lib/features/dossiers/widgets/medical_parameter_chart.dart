@@ -18,53 +18,103 @@ class MedicalParameterChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (data.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(32),
-          child: Text('Aucune donnée disponible'),
+      return Container(
+        padding: const EdgeInsets.all(40),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.show_chart, size: 48, color: Colors.grey),
+            SizedBox(height: 12),
+            Text(
+              '📊 Aucune donnée disponible',
+              style: TextStyle(color: Colors.grey),
+            ),
+            SizedBox(height: 4),
+            Text(
+              'Ajoutez des mesures pour voir le graphique',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
         ),
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Chart title
-        Row(
-          children: [
-            Icon(
-              parameter == 'glucose' ? Icons.science : Icons.thermostat,
-              color: AppColors.medicalBlue,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              parameter == 'glucose'
-                  ? 'Évolution de la glycémie'
-                  : 'Évolution de la température',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        // Chart
-        SizedBox(
-          height: 250,
-          child: LineChart(
-            _buildChartData(),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-        ),
-        const SizedBox(height: 16),
-        // Legend
-        Wrap(
-          spacing: 16,
-          children: [
-            _buildLegendItem('Normale', AppColors.stableGreen),
-            _buildLegendItem('Alerte modérée', AppColors.mediumYellow),
-            _buildLegendItem('Surveillance', AppColors.warningOrange),
-            _buildLegendItem('Urgence', AppColors.emergencyRed),
-          ],
-        ),
-      ],
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ✅ عنوان الرسم البياني
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.medicalBlue.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  parameter == 'glucose' ? Icons.science : Icons.thermostat,
+                  color: AppColors.medicalBlue,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                parameter == 'glucose'
+                    ? '📈 Évolution de la glycémie'
+                    : '🌡️ Évolution de la température',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // ✅ الرسم البياني
+          SizedBox(height: 280, child: LineChart(_buildChartData())),
+
+          const SizedBox(height: 20),
+
+          // ✅ Legend
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Wrap(
+              spacing: 16,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: [
+                _buildLegendItem('🟢 Normale', AppColors.stableGreen),
+                _buildLegendItem('🟡 Attention', AppColors.mediumYellow),
+                _buildLegendItem('🟠 Surveillance', AppColors.warningOrange),
+                _buildLegendItem('🔴 Urgence', AppColors.emergencyRed),
+                _buildLegendItem('📏 Seuils (pointillés)', Colors.grey),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -72,16 +122,39 @@ class MedicalParameterChart extends StatelessWidget {
     final spots = <FlSpot>[];
     for (int i = 0; i < data.length; i++) {
       final value = data[i]['value'];
-      final numericValue =
-          value is double ? value : double.tryParse(value.toString()) ?? 0;
+      final numericValue = value is double
+          ? value
+          : double.tryParse(value.toString()) ?? 0;
       spots.add(FlSpot(i.toDouble(), numericValue));
     }
 
     return LineChartData(
-      gridData: const FlGridData(show: true),
+      gridData: FlGridData(
+        show: true,
+        drawVerticalLine: true,
+        drawHorizontalLine: true,
+        getDrawingHorizontalLine: (value) {
+          return FlLine(
+            color: Colors.grey.shade300,
+            strokeWidth: 1,
+            dashArray: [5, 5],
+          );
+        },
+        getDrawingVerticalLine: (value) {
+          return FlLine(
+            color: Colors.grey.shade300,
+            strokeWidth: 1,
+            dashArray: [5, 5],
+          );
+        },
+      ),
       titlesData: _buildTitlesData(),
-      borderData: FlBorderData(show: true),
+      borderData: FlBorderData(
+        show: true,
+        border: Border.all(color: Colors.grey.shade300, width: 1),
+      ),
       lineBarsData: [
+        // ✅ الخط الرئيسي للبيانات
         LineChartBarData(
           spots: spots,
           isCurved: true,
@@ -90,13 +163,14 @@ class MedicalParameterChart extends StatelessWidget {
           dotData: const FlDotData(show: true),
           belowBarData: BarAreaData(
             show: true,
-            // ✅ Correction: withOpacity → withOpacity
             color: AppColors.medicalBlue.withValues(alpha: 0.1),
           ),
         ),
+        // ✅ خطوط العتبة
+        ..._getThresholdLines(),
       ],
-      minX: 0,
-      maxX: spots.length - 1 > 0 ? spots.length - 1 : 1,
+      minX: -0.5,
+      maxX: spots.length - 0.5,
       minY: _getMinY(),
       maxY: _getMaxY(),
     );
@@ -107,11 +181,17 @@ class MedicalParameterChart extends StatelessWidget {
       leftTitles: AxisTitles(
         sideTitles: SideTitles(
           showTitles: true,
-          reservedSize: 40,
+          reservedSize: 50,
           getTitlesWidget: (value, meta) {
-            return Text(
-              '${value.toInt()}$unit',
-              style: const TextStyle(fontSize: 10),
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Text(
+                value.toInt().toString(),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             );
           },
         ),
@@ -119,21 +199,32 @@ class MedicalParameterChart extends StatelessWidget {
       bottomTitles: AxisTitles(
         sideTitles: SideTitles(
           showTitles: true,
-          reservedSize: 30,
+          reservedSize: 40,
           getTitlesWidget: (value, meta) {
             final index = value.toInt();
             if (index >= 0 && index < data.length) {
               final date = data[index]['recordedAt'];
+              String label = '';
               if (date != null) {
-                // ✅ Correction: utiliser Timestamp من cloud_firestore
                 final dt = date is Timestamp
                     ? date.toDate()
                     : DateTime.parse(date.toString());
-                return Text(
-                  '${dt.day}/${dt.month}',
-                  style: const TextStyle(fontSize: 10),
-                );
+                label = '${dt.day}/${dt.month}';
+                if (data.length <= 10) {
+                  label +=
+                      '\n${dt.hour}h${dt.minute.toString().padLeft(2, '0')}';
+                }
+              } else {
+                label = 'J${index + 1}';
               }
+              return Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  label,
+                  style: const TextStyle(fontSize: 10),
+                  textAlign: TextAlign.center,
+                ),
+              );
             }
             return const Text('');
           },
@@ -144,85 +235,67 @@ class MedicalParameterChart extends StatelessWidget {
     );
   }
 
-  // ✅ بناء خطوط العتبة يدويًا بدون ExtraLinesData
   List<LineChartBarData> _getThresholdLines() {
+    final spots = List.generate(data.length, (i) => FlSpot(i.toDouble(), 0));
+
     if (parameter == 'glucose') {
       return [
-        // Critical low line (hypoglycémie sévère)
+        // 🔴 Hypoglycémie sévère (< 40)
         LineChartBarData(
-          spots: const [
-            FlSpot(0, 40),
-            FlSpot(100, 40),
-          ],
+          spots: spots.map((spot) => FlSpot(spot.x, 40)).toList(),
           isCurved: false,
           color: AppColors.emergencyRed,
           barWidth: 2,
-          isStepLineChart: false,
-          dashArray: [5, 5],
+          dashArray: [6, 4],
           dotData: const FlDotData(show: false),
         ),
-        // Warning low line (hypoglycémie modérée)
+        // 🟠 Hypoglycémie modérée (40-45)
         LineChartBarData(
-          spots: const [
-            FlSpot(0, 45),
-            FlSpot(100, 45),
-          ],
+          spots: spots.map((spot) => FlSpot(spot.x, 45)).toList(),
           isCurved: false,
           color: AppColors.warningOrange,
           barWidth: 2,
-          dashArray: [5, 5],
+          dashArray: [6, 4],
           dotData: const FlDotData(show: false),
         ),
-        // High line (hyperglycémie)
+        // 🟡 Hyperglycémie (> 150)
         LineChartBarData(
-          spots: const [
-            FlSpot(0, 150),
-            FlSpot(100, 150),
-          ],
+          spots: spots.map((spot) => FlSpot(spot.x, 150)).toList(),
           isCurved: false,
           color: AppColors.mediumYellow,
           barWidth: 2,
-          dashArray: [5, 5],
+          dashArray: [6, 4],
           dotData: const FlDotData(show: false),
         ),
       ];
     } else {
       // Temperature thresholds
       return [
-        // Emergency low (hypothermie sévère)
+        // 🔴 Hypothermie sévère (< 32°C)
         LineChartBarData(
-          spots: const [
-            FlSpot(0, 32),
-            FlSpot(100, 32),
-          ],
+          spots: spots.map((spot) => FlSpot(spot.x, 32)).toList(),
           isCurved: false,
           color: AppColors.emergencyRed,
           barWidth: 2,
-          dashArray: [5, 5],
+          dashArray: [6, 4],
           dotData: const FlDotData(show: false),
         ),
-        // Warning low (hypothermie)
+        // 🟠 Hypothermie modérée (32-36°C)
         LineChartBarData(
-          spots: const [
-            FlSpot(0, 36),
-            FlSpot(100, 36),
-          ],
+          spots: spots.map((spot) => FlSpot(spot.x, 36)).toList(),
           isCurved: false,
           color: AppColors.warningOrange,
           barWidth: 2,
-          dashArray: [5, 5],
+          dashArray: [6, 4],
           dotData: const FlDotData(show: false),
         ),
-        // Fever line (fièvre)
+        // 🔴 Fièvre (> 37.5°C)
         LineChartBarData(
-          spots: const [
-            FlSpot(0, 37.5),
-            FlSpot(100, 37.5),
-          ],
+          spots: spots.map((spot) => FlSpot(spot.x, 37.5)).toList(),
           isCurved: false,
           color: AppColors.emergencyRed,
           barWidth: 2,
-          dashArray: [5, 5],
+          dashArray: [6, 4],
           dotData: const FlDotData(show: false),
         ),
       ];
@@ -236,9 +309,9 @@ class MedicalParameterChart extends StatelessWidget {
     }).toList();
     final min = values.isEmpty ? 0 : values.reduce((a, b) => a < b ? a : b);
     if (parameter == 'glucose') {
-      return (min - 10).clamp(0, double.infinity).toDouble(); // ✅ إرجاع double
+      return (min - 10).clamp(0, double.infinity).toDouble();
     }
-    return (min - 2).clamp(25, double.infinity).toDouble(); // ✅ إرجاع double
+    return (min - 2).clamp(20, double.infinity).toDouble();
   }
 
   double _getMaxY() {
@@ -248,7 +321,7 @@ class MedicalParameterChart extends StatelessWidget {
     }).toList();
     final max = values.isEmpty ? 100 : values.reduce((a, b) => a > b ? a : b);
     if (parameter == 'glucose') {
-      return max + 20;
+      return max + 30;
     }
     return max + 2;
   }
@@ -261,14 +334,20 @@ class MedicalParameterChart extends StatelessWidget {
           width: 12,
           height: 12,
           decoration: BoxDecoration(
-            color: color,
+            color: color == Colors.grey ? null : color,
             shape: BoxShape.circle,
+            border: color == Colors.grey
+                ? Border.all(color: Colors.grey, width: 1.5)
+                : null,
           ),
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: 6),
         Text(
           label,
-          style: const TextStyle(fontSize: 11),
+          style: TextStyle(
+            fontSize: 11,
+            color: color == Colors.grey ? Colors.grey : color,
+          ),
         ),
       ],
     );

@@ -8,7 +8,6 @@ import 'storage_service.dart';
 import 'firestore_service.dart';
 
 /// Backup service for exporting and importing data.
-/// Supports JSON export/import, cloud backup, and local backup.
 class BackupService {
   final FirestoreService _firestoreService = FirestoreService();
   final StorageService _storageService = StorageService();
@@ -18,7 +17,6 @@ class BackupService {
     try {
       final backupData = <String, dynamic>{};
       
-      // Export all collections
       final collections = [
         AppConstants.dossiersPrematuresCollection,
         AppConstants.dossiersATermeCollection,
@@ -38,8 +36,7 @@ class BackupService {
             .toList();
       }
       
-      // Create JSON file
-      final jsonString = jsonEncode(backupData);
+      final jsonString = jsonEncode(jsonEncode(convertTimestamps(backupData)));
       final directory = await getTemporaryDirectory();
       final file = File('${directory.path}/neosante_backup_${DateTime.now().millisecondsSinceEpoch}.json');
       await file.writeAsString(jsonString);
@@ -87,7 +84,6 @@ class BackupService {
       final backupId = 'backup_${DateTime.now().millisecondsSinceEpoch}';
       final downloadUrl = await _storageService.uploadBackup(backupFile, backupId);
       
-      // Save backup metadata to Firestore
       await _firestoreService.addDocument(AppConstants.backupsCollection, {
         'id': backupId,
         'fileName': backupFile.path.split('/').last,
@@ -114,7 +110,6 @@ class BackupService {
   /// Restore from cloud backup
   Future<Map<String, int>> restoreFromCloud(String backupId) async {
     try {
-      // Get backup metadata
       final backupDoc = await _firestoreService.getDocument(AppConstants.backupsCollection, backupId);
       if (!backupDoc.exists) {
         throw Exception('Sauvegarde non trouvée');
@@ -123,15 +118,11 @@ class BackupService {
       final backupData = backupDoc.data() as Map<String, dynamic>;
       final downloadUrl = backupData['downloadUrl'] as String;
       
-      // Download backup file
       final directory = await getTemporaryDirectory();
       final localFile = File('${directory.path}/temp_backup.json');
       await _storageService.downloadFile(downloadUrl, localFile.path);
       
-      // Import data
       final stats = await importData(localFile);
-      
-      // Clean up
       await localFile.delete();
       
       return stats;
@@ -178,13 +169,10 @@ class BackupService {
         final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
         
         if (createdAt != null && createdAt.isBefore(cutoffDate)) {
-          // Delete from storage
           final downloadUrl = data['downloadUrl'] as String?;
           if (downloadUrl != null) {
             await _storageService.deleteFile(downloadUrl);
           }
-          
-          // Delete metadata
           await _firestoreService.deleteDocument(AppConstants.backupsCollection, doc.id);
         }
       }
@@ -213,7 +201,7 @@ class BackupService {
             .toList();
       }
       
-      final jsonString = jsonEncode(backupData);
+      final jsonString = jsonEncode(jsonEncode(convertTimestamps(backupData)));
       final directory = await getTemporaryDirectory();
       final file = File('${directory.path}/neosante_dossiers_backup.json');
       await file.writeAsString(jsonString);
@@ -230,7 +218,6 @@ class BackupService {
       final content = await file.readAsString();
       final data = jsonDecode(content) as Map<String, dynamic>;
       
-      // Check if at least one expected collection exists
       final validCollections = [
         AppConstants.dossiersPrematuresCollection,
         AppConstants.dossiersATermeCollection,
@@ -241,4 +228,22 @@ class BackupService {
       return false;
     }
   }
+dynamic convertTimestamps(dynamic data) {
+  if (data is Timestamp) {
+    return data.toDate().toIso8601String();
+  }
+
+  if (data is Map) {
+    return data.map(
+      (key, value) => MapEntry(key, convertTimestamps(value)),
+    );
+  }
+
+  if (data is List) {
+    return data.map(convertTimestamps).toList();
+  }
+
+  return data;
+}
+
 }

@@ -43,36 +43,68 @@ class RoleSelector extends StatelessWidget {
   }) {
     final isSelected = selectedRole == role;
     return Expanded(
-      child: InkWell(
-        onTap: isEnabled ? () => onRoleChanged(role) : null,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          gradient: isSelected
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [color, color.withValues(alpha: 0.8)],
+                )
+              : null,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
             color: isSelected
-                ? color.withValues(alpha: 0.15)
-                : Colors.grey.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isSelected ? color : Colors.grey.withValues(alpha: 0.3),
-              width: isSelected ? 2 : 1,
-            ),
+                ? Colors.white
+                : Colors.grey.withValues(alpha: 0.3),
+            width: isSelected ? 1.5 : 1,
           ),
-          child: Column(
-            children: [
-              Icon(
-                icon,
-                color: isSelected ? color : Colors.grey,
-                size: 32,
+          // ✅ إضافة ظل جميل
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.4),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: isEnabled ? () => onRoleChanged(role) : null,
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Column(
+                children: [
+                  Icon(
+                    icon,
+                    color: isSelected ? Colors.white : color,
+                    size: 36,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : color,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.w500,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  color: isSelected ? color : Colors.grey,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

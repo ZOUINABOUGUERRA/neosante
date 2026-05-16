@@ -90,7 +90,7 @@ class _AddEditUserScreenState extends ConsumerState<AddEditUserScreen> {
                 ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _role,
+                //value: _role,
                 decoration: const InputDecoration(labelText: 'Rôle'),
                 items: const [
                   DropdownMenuItem(value: 'sage-femme', child: Text('Sage-femme')),
@@ -117,33 +117,42 @@ class _AddEditUserScreenState extends ConsumerState<AddEditUserScreen> {
   }
 
   Future<void> _saveUser() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _isLoading = true);
-    try {
-      final auth = ref.read(authServiceProvider);
-      if (widget.userId == null) {
-        await auth.createUserWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-          firstName: _firstNameController.text.trim(),
-          lastName: _lastNameController.text.trim(),
-          role: _role,
-        );
-        context.showSuccessSnackBar('Utilisateur ajouté');
-      } else {
-        // Modifier utilisateur
-        await auth.updateUser(widget.userId!, {
-          'firstName': _firstNameController.text.trim(),
-          'lastName': _lastNameController.text.trim(),
-          'role': _role,
-        });
-        context.showSuccessSnackBar('Utilisateur modifié');
+  if (!_formKey.currentState!.validate()) return;
+  setState(() => _isLoading = true);
+  try {
+    final auth = ref.read(authServiceProvider);
+    if (widget.userId == null) {
+      // ✅ Ajout d'un nouvel utilisateur
+      await auth.createFullUser(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        firstName: _firstNameController.text.trim(),
+        lastName: _lastNameController.text.trim(),
+        role: _role,
+      );
+      if (mounted) {
+        context.showSuccessSnackBar('Utilisateur ajouté avec succès');
       }
-      Navigator.pop(context);
-    } catch (e) {
-      context.showErrorSnackBar('Erreur: $e');
-    } finally {
-      setState(() => _isLoading = false);
+    } else {
+      // ✅ Modification d'un utilisateur existant
+      await auth.updateUser(widget.userId!, {
+        'firstName': _firstNameController.text.trim(),
+        'lastName': _lastNameController.text.trim(),
+        'role': _role,
+      });
+      if (mounted) {
+        context.showSuccessSnackBar('Utilisateur modifié avec succès');
+      }
     }
+    if (mounted) {
+      Navigator.pop(context);
+    }
+  } catch (e) {
+    if (mounted) {
+      context.showErrorSnackBar('Erreur: ${e.toString()}');
+    }
+  } finally {
+    if (mounted) setState(() => _isLoading = false);
   }
+}
 }

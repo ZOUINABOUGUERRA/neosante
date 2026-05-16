@@ -61,7 +61,10 @@ class UserCard extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: user.isAdmin
                         ? AppColors.medicalBlue.withValues(alpha: 0.2)
@@ -72,7 +75,9 @@ class UserCard extends StatelessWidget {
                     user.isAdmin ? 'Admin' : 'Sage-femme',
                     style: TextStyle(
                       fontSize: 10,
-                      color: user.isAdmin ? AppColors.medicalBlue : AppColors.stableGreen,
+                      color: user.isAdmin
+                          ? AppColors.medicalBlue
+                          : AppColors.stableGreen,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -90,14 +95,20 @@ class UserCard extends StatelessWidget {
                 ),
                 if (!user.isActive)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.warningOrange.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Text(
                       'Désactivé',
-                      style: TextStyle(fontSize: 10, color: AppColors.warningOrange),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppColors.warningOrange,
+                      ),
                     ),
                   ),
               ],
@@ -122,7 +133,9 @@ class UserCard extends StatelessWidget {
                   icon: user.isActive ? Icons.block : Icons.check_circle,
                   label: user.isActive ? 'Désactiver' : 'Activer',
                   onPressed: onToggleStatus,
-                  color: user.isActive ? AppColors.emergencyRed : AppColors.stableGreen,
+                  color: user.isActive
+                      ? AppColors.emergencyRed
+                      : AppColors.stableGreen,
                 ),
                 _buildActionButton(
                   icon: Icons.delete,
@@ -153,10 +166,7 @@ class UserCard extends StatelessWidget {
           children: [
             Icon(icon, size: 20, color: color),
             const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(fontSize: 10, color: color),
-            ),
+            Text(label, style: TextStyle(fontSize: 10, color: color)),
           ],
         ),
       ),

@@ -1,180 +1,166 @@
-// frontend/lib/routes/route_guard.dart
-
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../features/auth/providers/auth_provider.dart';
+import '../core/constants/app_constants.dart';
 import '../shared/models/user_model.dart';
 
-/// Route guard provider for protecting routes based on authentication and roles
-final authGuardProvider = Provider<AuthGuard>((ref) => AuthGuard(ref));
+final authGuardProvider = Provider<AuthGuard>(
+  (ref) => AuthGuard(ref),
+);
 
-/// AuthGuard class for managing route protection
 class AuthGuard {
   final Ref ref;
-  
+
   AuthGuard(this.ref);
 
-  /// Redirect function for GoRouter
+  /// =========================
+  /// ROUTE REDIRECT LOGIC
+  /// =========================
   String? redirect(GoRouterState state) {
     final authState = ref.read(authProvider);
-    final isLoggedIn = authState.isLoggedIn;
+
     final user = authState.user;
-    final isLoginRoute = state.matchedLocation == '/login';
-    final isForgotPasswordRoute = state.matchedLocation == '/forgot-password';
-    
-    // Public routes without authentication
-    final publicRoutes = ['/login', '/forgot-password'];
-    if (publicRoutes.contains(state.matchedLocation)) {
-      if (isLoggedIn && (isLoginRoute || isForgotPasswordRoute)) {
-        // Redirection après connexion selon le rôle
-        return user?.isAdmin == true ? '/admin/dashboard' : '/dashboard';
-      }
-      return null;
-    }
-    
-    // Redirect to login if not authenticated
-    if (!isLoggedIn) {
-      return '/login';
-    }
-    
-    // Role-based routing
-    final path = state.matchedLocation;
-    
-    // ✅ Admin-only routes (mises à jour)
-    final adminRoutes = [
-      '/admin',
-      '/admin/dashboard',
-      '/admin/users',
-      '/admin/archives',
-      '/backup',
-      '/settings/users',
+    final isLoggedIn = authState.isLoggedIn;
+
+    final location = state.matchedLocation;
+
+    const publicRoutes = [
+      '/login',
+      '/forgot-password',
     ];
-    
-    // ✅ Sage-femme only routes (block admin from accessing these)
-    final sageFemmeRoutes = [
-      '/dashboard',
-      '/dossiers',
-      '/alerts',
-      '/transfers',
-      '/ai-assistant',
-    ];
-    
-    // ✅ Routes accessible by both roles
-    final commonRoutes = [
-      '/settings',
-      '/notifications',
-    ];
-    
-    // Check admin-only routes
-    if (adminRoutes.any((route) => path.startsWith(route))) {
-      if (user?.isAdmin != true) {
-        return '/dashboard'; // redirect non-admin to their dashboard
-      }
+
+    final isPublic = publicRoutes.contains(location);
+
+    // =========================
+    // NOT LOGGED IN
+    // =========================
+    if (!isLoggedIn || user == null) {
+      return isPublic ? null : '/login';
     }
-    
-    // Check sage-femme only routes (block admin)
-    if (sageFemmeRoutes.any((route) => path.startsWith(route))) {
-      if (user?.isAdmin == true) {
-        return '/admin/dashboard';
-      }
+
+    // =========================
+    // LOGGED IN + PUBLIC ROUTE
+    // =========================
+    if (isPublic) {
+      return user.role == AppConstants.roleAdmin
+          ? '/admin/dashboard'
+          : '/dashboard';
     }
-    
-    // Common routes are accessible by both
+
+    // =========================
+    // ADMIN ROUTE PROTECTION
+    // =========================
+    final isAdminRoute =
+        location == '/admin' ||
+        location.startsWith('/admin/');
+
+    if (isAdminRoute &&
+        user.role != AppConstants.roleAdmin) {
+      return '/dashboard';
+    }
+
+    // =========================
+    // PREVENT ADMIN USING USER DASHBOARD
+    // =========================
+    if (location == '/dashboard' &&
+        user.role == AppConstants.roleAdmin) {
+      return '/admin/dashboard';
+    }
+
     return null;
   }
 
-  /// Check if user has required role for the route
-  bool _hasRequiredRole(GoRouterState state, UserModel? user) {
-    final path = state.matchedLocation;
-    
-    // Admin-only routes
-    final adminRoutes = [
-      '/admin',
-      '/admin/dashboard',
-      '/admin/users',
-      '/admin/archives',
-      '/backup',
-      '/settings/users',
-      '/analytics',
-    ];
-    
-    if (adminRoutes.any((route) => path.startsWith(route))) {
-      return user?.isAdmin == true;
-    }
-    
-    // Routes accessible by both admin and sage-femme
-    return user != null;
-  }
+  /// =========================
+  /// DOSSIER ACCESS CONTROL
+  /// =========================
+  Future<bool> canAccessDossier(
+    String id,
+    String type,
+  ) async {
+    final user = ref.read(authProvider).user;
 
-  /// Check if user can access a specific dossier
-  Future<bool> canAccessDossier(String dossierId, String dossierType) async {
-    final authState = ref.read(authProvider);
-    final user = authState.user;
-    
     if (user == null) return false;
-    if (user.isAdmin) return true;
-    
+
+    // ✅ Admin full access
+    if (user.role == AppConstants.roleAdmin) {
+      return true;
+    }
+
     try {
-      final firestore = FirebaseFirestore.instance;
-      final doc = await firestore.collection(dossierType).doc(dossierId).get();
-      
+      final doc = await FirebaseFirestore.instance
+          .collection(type)
+          .doc(id)
+          .get();
+
       if (!doc.exists) return false;
-      
+
       final data = doc.data();
+
       if (data == null) return false;
-      
+
       final createdBy = data['createdBy'];
-      final assignedDoctorId = data['assignedDoctorId'];
-      
-      return createdBy == user.id || assignedDoctorId == user.id;
+      final assignedDoctorId =
+          data['assignedDoctorId'];
+
+      return createdBy == user.id ||
+          assignedDoctorId == user.id;
+
     } catch (e) {
+      debugPrint(
+        '❌ Dossier access error: $e',
+      );
       return false;
     }
   }
 
-  /// Get current user
+  /// =========================
+  /// LOGOUT
+  /// =========================
+  Future<void> logout(
+    BuildContext context,
+  ) async {
+    try {
+      await ref
+          .read(authProvider.notifier)
+          .signOut();
+
+      if (context.mounted) {
+        context.go('/login');
+      }
+
+    } catch (e) {
+      debugPrint(
+        '❌ Logout error: $e',
+      );
+    }
+  }
+
+  /// =========================
+  /// HELPERS
+  /// =========================
+
   UserModel? getCurrentUser() {
     return ref.read(authProvider).user;
   }
 
-  /// Check if user is authenticated
   bool isAuthenticated() {
     return ref.read(authProvider).isLoggedIn;
   }
 
-  /// Check if user is admin
   bool isAdmin() {
     final user = ref.read(authProvider).user;
-    return user?.isAdmin ?? false;
+
+    return user?.role ==
+        AppConstants.roleAdmin;
   }
 
-  /// Check if user is sage-femme
   bool isSageFemme() {
     final user = ref.read(authProvider).user;
-    return user?.isSageFemme ?? false;
+
+    return user?.role ==
+        AppConstants.roleSageFemme;
   }
 }
-
-/// Provider for checking if user has specific role
-final hasRoleProvider = Provider<bool>((ref) {
-  final user = ref.watch(authProvider).user;
-  return user != null;
-});
-
-/// Provider for checking if user is admin
-final isAdminProvider = Provider<bool>((ref) {
-  final user = ref.watch(authProvider).user;
-  return user?.isAdmin ?? false;
-});
-
-/// Provider for checking if user is sage-femme
-final isSageFemmeProvider = Provider<bool>((ref) {
-  final user = ref.watch(authProvider).user;
-  return user?.isSageFemme ?? false;
-});
-
-/// Provider for current user
-final currentUserProvider = Provider<UserModel?>((ref) {
-  return ref.watch(authProvider).user;
-});

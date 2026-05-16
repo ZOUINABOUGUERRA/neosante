@@ -1,13 +1,65 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
 
-/// Glucose reading record for surveillance monitoring.
+/// ==============================
+/// HELPERS
+/// ==============================
+
+DateTime _parseDate(dynamic value) {
+  if (value == null) {
+    return DateTime.now();
+  }
+
+  if (value is Timestamp) {
+    return value.toDate();
+  }
+
+  if (value is DateTime) {
+    return value;
+  }
+
+  if (value is String) {
+    return DateTime.tryParse(value) ?? DateTime.now();
+  }
+
+  return DateTime.now();
+}
+
+double _parseDouble(dynamic value) {
+  if (value == null) {
+    return 0;
+  }
+
+  if (value is int) {
+    return value.toDouble();
+  }
+
+  if (value is double) {
+    return value;
+  }
+
+  if (value is String) {
+    return double.tryParse(value) ?? 0;
+  }
+
+  return 0;
+}
+
+/// ==============================
+/// GLUCOSE READING
+/// ==============================
+
 class GlucoseReading extends Equatable {
   final String id;
+
   final String dossierId;
-  final double value; // mg/dL
+
+  final double value;
+
   final DateTime recordedAt;
+
   final String recordedBy;
+
   final String? notes;
 
   const GlucoseReading({
@@ -19,12 +71,15 @@ class GlucoseReading extends Equatable {
     this.notes,
   });
 
-  factory GlucoseReading.fromJson(Map<String, dynamic> json, String docId) {
+  factory GlucoseReading.fromJson(
+    Map<String, dynamic> json,
+    String docId,
+  ) {
     return GlucoseReading(
       id: docId,
       dossierId: json['dossierId'] ?? '',
-      value: (json['value'] ?? 0).toDouble(),
-      recordedAt: (json['recordedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      value: _parseDouble(json['value']),
+      recordedAt: _parseDate(json['recordedAt']),
       recordedBy: json['recordedBy'] ?? '',
       notes: json['notes'],
     );
@@ -37,20 +92,54 @@ class GlucoseReading extends Equatable {
       'recordedAt': Timestamp.fromDate(recordedAt),
       'recordedBy': recordedBy,
       'notes': notes,
+      'type': 'glucose',
     };
   }
 
+  GlucoseReading copyWith({
+    String? id,
+    String? dossierId,
+    double? value,
+    DateTime? recordedAt,
+    String? recordedBy,
+    String? notes,
+  }) {
+    return GlucoseReading(
+      id: id ?? this.id,
+      dossierId: dossierId ?? this.dossierId,
+      value: value ?? this.value,
+      recordedAt: recordedAt ?? this.recordedAt,
+      recordedBy: recordedBy ?? this.recordedBy,
+      notes: notes ?? this.notes,
+    );
+  }
+
   @override
-  List<Object?> get props => [id, value, recordedAt];
+  List<Object?> get props => [
+        id,
+        dossierId,
+        value,
+        recordedAt,
+        recordedBy,
+        notes,
+      ];
 }
 
-/// Temperature reading record for surveillance monitoring.
+/// ==============================
+/// TEMPERATURE READING
+/// ==============================
+
 class TemperatureReading extends Equatable {
   final String id;
+
   final String dossierId;
-  final double value; // Celsius
+
+  final double value;
+
   final DateTime recordedAt;
+
   final String recordedBy;
+
   final String? notes;
 
   const TemperatureReading({
@@ -62,12 +151,15 @@ class TemperatureReading extends Equatable {
     this.notes,
   });
 
-  factory TemperatureReading.fromJson(Map<String, dynamic> json, String docId) {
+  factory TemperatureReading.fromJson(
+    Map<String, dynamic> json,
+    String docId,
+  ) {
     return TemperatureReading(
       id: docId,
       dossierId: json['dossierId'] ?? '',
-      value: (json['value'] ?? 0).toDouble(),
-      recordedAt: (json['recordedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      value: _parseDouble(json['value']),
+      recordedAt: _parseDate(json['recordedAt']),
       recordedBy: json['recordedBy'] ?? '',
       notes: json['notes'],
     );
@@ -80,26 +172,66 @@ class TemperatureReading extends Equatable {
       'recordedAt': Timestamp.fromDate(recordedAt),
       'recordedBy': recordedBy,
       'notes': notes,
+      'type': 'temperature',
     };
   }
 
+  TemperatureReading copyWith({
+    String? id,
+    String? dossierId,
+    double? value,
+    DateTime? recordedAt,
+    String? recordedBy,
+    String? notes,
+  }) {
+    return TemperatureReading(
+      id: id ?? this.id,
+      dossierId: dossierId ?? this.dossierId,
+      value: value ?? this.value,
+      recordedAt: recordedAt ?? this.recordedAt,
+      recordedBy: recordedBy ?? this.recordedBy,
+      notes: notes ?? this.notes,
+    );
+  }
+
   @override
-  List<Object?> get props => [id, value, recordedAt];
+  List<Object?> get props => [
+        id,
+        dossierId,
+        value,
+        recordedAt,
+        recordedBy,
+        notes,
+      ];
 }
 
-/// Medication prescription record.
+/// ==============================
+/// MEDICATION
+/// ==============================
+
 class Medication extends Equatable {
   final String id;
+
   final String dossierId;
+
   final String medicationName;
+
   final String dosage;
-  final String route; // 'IV', 'IM', 'PO', 'SC'
+
+  final String route;
+
   final String frequency;
+
   final DateTime prescribedAt;
+
   final String prescribedBy;
+
   final DateTime? administrationTime;
+
   final String? administeredBy;
+
   final bool isAdministered;
+
   final String? notes;
 
   const Medication({
@@ -117,7 +249,10 @@ class Medication extends Equatable {
     this.notes,
   });
 
-  factory Medication.fromJson(Map<String, dynamic> json, String docId) {
+  factory Medication.fromJson(
+    Map<String, dynamic> json,
+    String docId,
+  ) {
     return Medication(
       id: docId,
       dossierId: json['dossierId'] ?? '',
@@ -125,9 +260,11 @@ class Medication extends Equatable {
       dosage: json['dosage'] ?? '',
       route: json['route'] ?? '',
       frequency: json['frequency'] ?? '',
-      prescribedAt: (json['prescribedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      prescribedAt: _parseDate(json['prescribedAt']),
       prescribedBy: json['prescribedBy'] ?? '',
-      administrationTime: (json['administrationTime'] as Timestamp?)?.toDate(),
+      administrationTime: json['administrationTime'] != null
+          ? _parseDate(json['administrationTime'])
+          : null,
       administeredBy: json['administeredBy'],
       isAdministered: json['isAdministered'] ?? false,
       notes: json['notes'],
@@ -143,7 +280,9 @@ class Medication extends Equatable {
       'frequency': frequency,
       'prescribedAt': Timestamp.fromDate(prescribedAt),
       'prescribedBy': prescribedBy,
-      'administrationTime': administrationTime != null ? Timestamp.fromDate(administrationTime!) : null,
+      'administrationTime': administrationTime != null
+          ? Timestamp.fromDate(administrationTime!)
+          : null,
       'administeredBy': administeredBy,
       'isAdministered': isAdministered,
       'notes': notes,
@@ -151,37 +290,74 @@ class Medication extends Equatable {
   }
 
   Medication copyWith({
-    bool? isAdministered,
+    String? id,
+    String? dossierId,
+    String? medicationName,
+    String? dosage,
+    String? route,
+    String? frequency,
+    DateTime? prescribedAt,
+    String? prescribedBy,
     DateTime? administrationTime,
     String? administeredBy,
+    bool? isAdministered,
+    String? notes,
   }) {
     return Medication(
-      id: id,
-      dossierId: dossierId,
-      medicationName: medicationName,
-      dosage: dosage,
-      route: route,
-      frequency: frequency,
-      prescribedAt: prescribedAt,
-      prescribedBy: prescribedBy,
-      administrationTime: administrationTime ?? this.administrationTime,
-      administeredBy: administeredBy ?? this.administeredBy,
-      isAdministered: isAdministered ?? this.isAdministered,
-      notes: notes,
+      id: id ?? this.id,
+      dossierId: dossierId ?? this.dossierId,
+      medicationName:
+          medicationName ?? this.medicationName,
+      dosage: dosage ?? this.dosage,
+      route: route ?? this.route,
+      frequency: frequency ?? this.frequency,
+      prescribedAt:
+          prescribedAt ?? this.prescribedAt,
+      prescribedBy:
+          prescribedBy ?? this.prescribedBy,
+      administrationTime:
+          administrationTime ??
+              this.administrationTime,
+      administeredBy:
+          administeredBy ?? this.administeredBy,
+      isAdministered:
+          isAdministered ?? this.isAdministered,
+      notes: notes ?? this.notes,
     );
   }
 
   @override
-  List<Object?> get props => [id, medicationName, isAdministered];
+  List<Object?> get props => [
+        id,
+        dossierId,
+        medicationName,
+        dosage,
+        route,
+        frequency,
+        prescribedAt,
+        prescribedBy,
+        administrationTime,
+        administeredBy,
+        isAdministered,
+        notes,
+      ];
 }
 
-/// Clinical observation record.
+/// ==============================
+/// OBSERVATION
+/// ==============================
+
 class Observation extends Equatable {
   final String id;
+
   final String dossierId;
+
   final String content;
-  final String category; // 'general', 'neurological', 'respiratory', 'cardiovascular', 'digestive'
+
+  final String category;
+
   final DateTime recordedAt;
+
   final String recordedBy;
 
   const Observation({
@@ -193,13 +369,16 @@ class Observation extends Equatable {
     required this.recordedBy,
   });
 
-  factory Observation.fromJson(Map<String, dynamic> json, String docId) {
+  factory Observation.fromJson(
+    Map<String, dynamic> json,
+    String docId,
+  ) {
     return Observation(
       id: docId,
       dossierId: json['dossierId'] ?? '',
       content: json['content'] ?? '',
       category: json['category'] ?? 'general',
-      recordedAt: (json['recordedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      recordedAt: _parseDate(json['recordedAt']),
       recordedBy: json['recordedBy'] ?? '',
     );
   }
@@ -214,6 +393,31 @@ class Observation extends Equatable {
     };
   }
 
+  Observation copyWith({
+    String? id,
+    String? dossierId,
+    String? content,
+    String? category,
+    DateTime? recordedAt,
+    String? recordedBy,
+  }) {
+    return Observation(
+      id: id ?? this.id,
+      dossierId: dossierId ?? this.dossierId,
+      content: content ?? this.content,
+      category: category ?? this.category,
+      recordedAt: recordedAt ?? this.recordedAt,
+      recordedBy: recordedBy ?? this.recordedBy,
+    );
+  }
+
   @override
-  List<Object?> get props => [id, content, recordedAt];
+  List<Object?> get props => [
+        id,
+        dossierId,
+        content,
+        category,
+        recordedAt,
+        recordedBy,
+      ];
 }

@@ -20,82 +20,82 @@ abstract class Failure extends Equatable {
 /// Network-related failures (no internet, connection timeout, etc.)
 class NetworkFailure extends Failure {
   const NetworkFailure({
-    required String message,
-    int? statusCode,
-    dynamic originalError,
-  }) : super(message: message, statusCode: statusCode, originalError: originalError);
+    required super.message,
+    super.statusCode,
+    super.originalError,
+  });
 }
 
 /// Server-side failures (Firebase errors, API errors)
 class ServerFailure extends Failure {
   const ServerFailure({
-    required String message,
-    int? statusCode,
-    dynamic originalError,
-  }) : super(message: message, statusCode: statusCode, originalError: originalError);
+    required super.message,
+    super.statusCode,
+    super.originalError,
+  });
 }
 
 /// Authentication failures (invalid credentials, user not found, etc.)
 class AuthFailure extends Failure {
   const AuthFailure({
-    required String message,
-    int? statusCode,
-    dynamic originalError,
-  }) : super(message: message, statusCode: statusCode, originalError: originalError);
+    required super.message,
+    super.statusCode,
+    super.originalError,
+  });
 }
 
 /// Database operation failures (Firestore read/write errors)
 class DatabaseFailure extends Failure {
   const DatabaseFailure({
-    required String message,
-    int? statusCode,
-    dynamic originalError,
-  }) : super(message: message, statusCode: statusCode, originalError: originalError);
+    required super.message,
+    super.statusCode,
+    super.originalError,
+  });
 }
 
 /// Storage operation failures (Firebase Storage upload/download errors)
 class StorageFailure extends Failure {
   const StorageFailure({
-    required String message,
-    int? statusCode,
-    dynamic originalError,
-  }) : super(message: message, statusCode: statusCode, originalError: originalError);
+    required super.message,
+    super.statusCode,
+    super.originalError,
+  });
 }
 
 /// Cache/offline storage failures (Hive errors)
 class CacheFailure extends Failure {
   const CacheFailure({
-    required String message,
-    int? statusCode,
-    dynamic originalError,
-  }) : super(message: message, statusCode: statusCode, originalError: originalError);
+    required super.message,
+    super.statusCode,
+    super.originalError,
+  });
 }
 
 /// Notification failures (FCM errors)
 class NotificationFailure extends Failure {
   const NotificationFailure({
-    required String message,
-    int? statusCode,
-    dynamic originalError,
-  }) : super(message: message, statusCode: statusCode, originalError: originalError);
+    required super.message,
+    super.statusCode,
+    super.originalError,
+  });
 }
 
 /// AI service failures (Claude API errors)
 class AIFailure extends Failure {
   const AIFailure({
-    required String message,
-    int? statusCode,
-    dynamic originalError,
-  }) : super(message: message, statusCode: statusCode, originalError: originalError);
+    required super.message,
+    super.statusCode,
+    super.originalError,
+  });
 }
 
 /// PDF generation failures
 class PDFFailure extends Failure {
   const PDFFailure({
-    required String message,
-    int? statusCode,
-    dynamic originalError,
-  }) : super(message: message, statusCode: statusCode, originalError: originalError);
+    required super.message,
+    super.statusCode,
+    super.originalError,
+  });
 }
 
 /// Validation failures (form validation errors)
@@ -103,20 +103,20 @@ class ValidationFailure extends Failure {
   final Map<String, String>? fieldErrors;
 
   const ValidationFailure({
-    required String message,
+    required super.message,
     this.fieldErrors,
-    int? statusCode,
-    dynamic originalError,
-  }) : super(message: message, statusCode: statusCode, originalError: originalError);
+    super.statusCode,
+    super.originalError,
+  });
 }
 
 /// Permission failures (missing permissions for camera, storage, etc.)
 class PermissionFailure extends Failure {
   const PermissionFailure({
-    required String message,
-    int? statusCode,
-    dynamic originalError,
-  }) : super(message: message, statusCode: statusCode, originalError: originalError);
+    required super.message,
+    super.statusCode,
+    super.originalError,
+  });
 }
 
 /// Helper function to map Firebase Auth exceptions to Failure objects

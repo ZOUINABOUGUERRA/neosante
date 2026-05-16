@@ -12,7 +12,8 @@ class Step4SystematicGestures extends StatefulWidget {
   });
 
   @override
-  State<Step4SystematicGestures> createState() => _Step4SystematicGesturesState();
+  State<Step4SystematicGestures> createState() =>
+      _Step4SystematicGesturesState();
 }
 
 class _Step4SystematicGesturesState extends State<Step4SystematicGestures> {
@@ -27,16 +28,6 @@ class _Step4SystematicGesturesState extends State<Step4SystematicGestures> {
   bool _vitamineK = false;
   bool _bracelet = false;
 
-  // ✅ قوائم الخيارات لـ SegmentedButton
-  final Set<String> _clampageOptions = {'immédiate', 'tardif'};
-  final Set<String> _miseSousChaleurOptions = {
-    'Incubateur préchauffé + bonnet',
-    'lampe chauffante',
-    'peau à peau',
-    'sac',
-    'autre',
-  };
-
   @override
   void initState() {
     super.initState();
@@ -48,9 +39,13 @@ class _Step4SystematicGesturesState extends State<Step4SystematicGestures> {
     _sechage = widget.initialData['sechage'] ?? false;
     _stimulation = widget.initialData['stimulation'] ?? false;
     _clampage = widget.initialData['clampage'] ?? 'tardif';
-    _verificationTonusRespiration = widget.initialData['verificationTonusRespiration'] ?? false;
-    _verificationOther = widget.initialData['verificationTonusRespirationOther'] ?? '';
-    _miseSousChaleur = widget.initialData['miseSousChaleur'] ?? 'Incubateur préchauffé + bonnet';
+    _verificationTonusRespiration =
+        widget.initialData['verificationTonusRespiration'] ?? false;
+    _verificationOther =
+        widget.initialData['verificationTonusRespirationOther'] ?? '';
+    _miseSousChaleur =
+        widget.initialData['miseSousChaleur'] ??
+        'Incubateur préchauffé + bonnet';
     _miseSousChaleurOther = widget.initialData['miseSousChaleurOther'] ?? '';
     _vitamineK = widget.initialData['vitamineK'] ?? false;
     _bracelet = widget.initialData['bracelet'] ?? false;
@@ -64,7 +59,9 @@ class _Step4SystematicGesturesState extends State<Step4SystematicGestures> {
       'clampage': _clampage,
       'verificationTonusRespiration': _verificationTonusRespiration,
       'verificationTonusRespirationOther': _verificationOther,
-      'miseSousChaleur': _miseSousChaleur == 'autre' ? _miseSousChaleurOther : _miseSousChaleur,
+      'miseSousChaleur': _miseSousChaleur == 'autre'
+          ? _miseSousChaleurOther
+          : _miseSousChaleur,
       'miseSousChaleurOther': _miseSousChaleurOther,
       'vitamineK': _vitamineK,
       'bracelet': _bracelet,
@@ -74,172 +71,227 @@ class _Step4SystematicGesturesState extends State<Step4SystematicGestures> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionHeader('🌡️ Préparation et soins immédiats', Icons.thermostat),
-          const SizedBox(height: 16),
-          _buildCheckboxTile(
-            title: 'Préchauffé',
-            value: _prechauffe,
-            onChanged: (value) {
-              setState(() => _prechauffe = value!);
-              _notifyParent();
-            },
-            subtitle: 'Préchauffage de la salle de naissance / incubateur',
-          ),
-          _buildCheckboxTile(
-            title: 'Séchage',
-            value: _sechage,
-            onChanged: (value) {
-              setState(() => _sechage = value!);
-              _notifyParent();
-            },
-            subtitle: 'Séchage complet du nouveau-né',
-          ),
-          _buildCheckboxTile(
-            title: 'Stimulation',
-            value: _stimulation,
-            onChanged: (value) {
-              setState(() => _stimulation = value!);
-              _notifyParent();
-            },
-            subtitle: 'Stimulation tactile si nécessaire',
-          ),
-          const Divider(height: 32),
-          
-          _buildSectionHeader('🔌 Clampage du cordon', Icons.link),
-          const SizedBox(height: 16),
-          // ✅ استخدام SegmentedButton بدلاً من Radio
-          SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'immédiate', label: Text('Clampage immédiat')),
-              ButtonSegment(value: 'tardif', label: Text('Clampage tardif (≥ 1 minute)')),
-            ],
-            selected: {_clampage},
-            onSelectionChanged: (Set<String> newSelection) {
-              setState(() {
-                _clampage = newSelection.first;
-                _notifyParent();
-              });
-            },
-            style: ButtonStyle(
-              backgroundColor: WidgetStateProperty.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return AppColors.medicalBlue;
-                }
-                return Colors.grey.shade200;
-              }),
-            ),
-          ),
-          const Divider(height: 32),
-
-          _buildSectionHeader('🫁 Vérification tonus et respiration', Icons.healing),
-          const SizedBox(height: 16),
-          _buildCheckboxTile(
-            title: 'Vérification effectuée',
-            value: _verificationTonusRespiration,
-            onChanged: (value) {
-              setState(() => _verificationTonusRespiration = value!);
-              _notifyParent();
-            },
-          ),
-          if (_verificationTonusRespiration)
-            Padding(
-              padding: const EdgeInsets.only(left: 40, top: 8),
-              child: TextField(
-                decoration: InputDecoration(
-                  labelText: 'Observations complémentaires',
-                  hintText: 'Détails sur la vérification...',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
+          // ✅ Soins immédiats
+          _buildSectionCard(
+            title: '🌡️ Soins immédiats',
+            icon: Icons.thermostat,
+            children: [
+              _buildCheckboxTile(
+                title: '✅ Préchauffé',
+                subtitle: 'Préchauffage de la salle de naissance / incubateur',
+                value: _prechauffe,
                 onChanged: (value) {
-                  _verificationOther = value;
+                  setState(() => _prechauffe = value!);
                   _notifyParent();
                 },
               ),
-            ),
-          const Divider(height: 32),
-
-          _buildSectionHeader('🔥 Mise sous chaleur', Icons.wb_sunny),
-          const SizedBox(height: 16),
-          // ✅ استخدام SegmentedButton بدلاً من Radio
-          SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'Incubateur préchauffé + bonnet', label: Text('Incubateur + bonnet')),
-              ButtonSegment(value: 'lampe chauffante', label: Text('Lampe chauffante')),
-              ButtonSegment(value: 'peau à peau', label: Text('Peau à peau')),
-              ButtonSegment(value: 'sac', label: Text('Sac plastique')),
-              ButtonSegment(value: 'autre', label: Text('Autre')),
-            ],
-            selected: {_miseSousChaleur},
-            onSelectionChanged: (Set<String> newSelection) {
-              setState(() {
-                _miseSousChaleur = newSelection.first;
-                _notifyParent();
-              });
-            },
-            style: ButtonStyle(
-              backgroundColor: WidgetStateProperty.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return AppColors.medicalBlue;
-                }
-                return Colors.grey.shade200;
-              }),
-            ),
-          ),
-          if (_miseSousChaleur == 'autre')
-            Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: TextField(
-                decoration: InputDecoration(
-                  labelText: 'Précisez le dispositif',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
+              _buildCheckboxTile(
+                title: '✅ Séchage complet',
+                subtitle: 'Séchage complet du nouveau-né',
+                value: _sechage,
                 onChanged: (value) {
-                  _miseSousChaleurOther = value;
+                  setState(() => _sechage = value!);
                   _notifyParent();
                 },
               ),
-            ),
-          const Divider(height: 32),
-
-          _buildSectionHeader('💊 Vitaminothérapie et identification', Icons.medical_services),
-          const SizedBox(height: 16),
-          _buildCheckboxTile(
-            title: 'Vitamine K administrée',
-            value: _vitamineK,
-            onChanged: (value) {
-              setState(() => _vitamineK = value!);
-              _notifyParent();
-            },
-            subtitle: '1 mg IM ou 2 mg VO',
+              _buildCheckboxTile(
+                title: '✅ Stimulation',
+                subtitle: 'Stimulation tactile si nécessaire',
+                value: _stimulation,
+                onChanged: (value) {
+                  setState(() => _stimulation = value!);
+                  _notifyParent();
+                },
+              ),
+            ],
           ),
-          _buildCheckboxTile(
-            title: 'Bracelet d\'identification posé',
-            value: _bracelet,
-            onChanged: (value) {
-              setState(() => _bracelet = value!);
-              _notifyParent();
-            },
-            subtitle: 'Identification mère-enfant',
+          const SizedBox(height: 20),
+
+          // ✅ Clampage
+          _buildSectionCard(
+            title: '🔌 Clampage du cordon',
+            icon: Icons.link,
+            children: [
+              _buildSegmentedButton(
+                value: _clampage,
+                segments: const [
+                  ButtonSegment(
+                    value: 'immédiate',
+                    label: Text('⚡ Clampage immédiat'),
+                  ),
+                  ButtonSegment(
+                    value: 'tardif',
+                    label: Text('⏱️ Clampage tardif (≥ 1 min)'),
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() => _clampage = value);
+                  _notifyParent();
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // ✅ Vérification
+          _buildSectionCard(
+            title: '🫁 Vérification',
+            icon: Icons.healing,
+            children: [
+              _buildCheckboxTile(
+                title: '✅ Vérification tonus et respiration',
+                subtitle: 'Évaluation clinique systématique',
+                value: _verificationTonusRespiration,
+                onChanged: (value) {
+                  setState(() => _verificationTonusRespiration = value!);
+                  _notifyParent();
+                },
+              ),
+              if (_verificationTonusRespiration)
+                Padding(
+                  padding: const EdgeInsets.only(left: 40, top: 8),
+                  child: _buildTextField(
+                    controller: TextEditingController(text: _verificationOther),
+                    label: 'Observations',
+                    hint: 'Détails de la vérification...',
+                    onChanged: (value) {
+                      _verificationOther = value;
+                      _notifyParent();
+                    },
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // ✅ Mise sous chaleur
+          _buildSectionCard(
+            title: '🔥 Mise sous chaleur',
+            icon: Icons.wb_sunny,
+            children: [
+              _buildSegmentedButton(
+                value: _miseSousChaleur,
+                segments: const [
+                  ButtonSegment(
+                    value: 'Incubateur préchauffé + bonnet',
+                    label: Text('🏥 Incubateur + bonnet'),
+                  ),
+                  ButtonSegment(
+                    value: 'lampe chauffante',
+                    label: Text('💡 Lampe chauffante'),
+                  ),
+                  ButtonSegment(
+                    value: 'peau à peau',
+                    label: Text('🤱 Peau à peau'),
+                  ),
+                  ButtonSegment(value: 'sac', label: Text('🛍️ Sac plastique')),
+                  ButtonSegment(value: 'autre', label: Text('🔧 Autre')),
+                ],
+                onChanged: (value) {
+                  setState(() => _miseSousChaleur = value);
+                  _notifyParent();
+                },
+              ),
+              if (_miseSousChaleur == 'autre')
+                Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: _buildTextField(
+                    controller: TextEditingController(
+                      text: _miseSousChaleurOther,
+                    ),
+                    label: 'Précisez le dispositif',
+                    hint: 'Ex: Matelas chauffant...',
+                    onChanged: (value) {
+                      _miseSousChaleurOther = value;
+                      _notifyParent();
+                    },
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // ✅ Vitaminothérapie
+          _buildSectionCard(
+            title: '💊 Vitaminothérapie',
+            icon: Icons.medical_services,
+            children: [
+              _buildCheckboxTile(
+                title: '✅ Vitamine K administrée',
+                subtitle: '1 mg IM ou 2 mg VO',
+                value: _vitamineK,
+                onChanged: (value) {
+                  setState(() => _vitamineK = value!);
+                  _notifyParent();
+                },
+              ),
+              _buildCheckboxTile(
+                title: '✅ Bracelet d\'identification posé',
+                subtitle: 'Identification mère-enfant',
+                value: _bracelet,
+                onChanged: (value) {
+                  setState(() => _bracelet = value!);
+                  _notifyParent();
+                },
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSectionHeader(String title, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, color: AppColors.medicalBlue, size: 24),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+  Widget _buildSectionCard({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.medicalBlue.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: AppColors.medicalBlue, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            ...children,
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -251,12 +303,74 @@ class _Step4SystematicGesturesState extends State<Step4SystematicGestures> {
   }) {
     return CheckboxListTile(
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
-      subtitle: subtitle != null ? Text(subtitle, style: const TextStyle(fontSize: 12)) : null,
+      subtitle: subtitle != null
+          ? Text(
+              subtitle,
+              style: const TextStyle(fontSize: 13, color: Colors.grey),
+            )
+          : null,
       value: value,
       onChanged: onChanged,
-      activeColor: AppColors.medicalBlue,
+      activeColor: AppColors.stableGreen,
       contentPadding: EdgeInsets.zero,
       dense: false,
+      controlAffinity: ListTileControlAffinity.leading,
+    );
+  }
+
+  Widget _buildSegmentedButton({
+    required String value,
+    required List<ButtonSegment<String>> segments,
+    required Function(String) onChanged,
+  }) {
+    return SegmentedButton<String>(
+      segments: segments,
+      selected: {value},
+      onSelectionChanged: (Set<String> newSelection) {
+        onChanged(newSelection.first);
+      },
+      style: ButtonStyle(
+        backgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppColors.medicalBlue;
+          }
+          return Colors.grey.shade100;
+        }),
+        foregroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return Colors.white;
+          }
+          return Colors.grey.shade700;
+        }),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    String? hint,
+    required Function(String) onChanged,
+  }) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.medicalBlue, width: 2),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
+      ),
+      onChanged: onChanged,
     );
   }
 }

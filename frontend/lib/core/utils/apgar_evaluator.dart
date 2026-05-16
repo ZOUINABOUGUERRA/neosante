@@ -36,8 +36,10 @@ class ApgarEvaluator {
 
   /// Calculates total APGAR score from individual criteria values
   static int calculateScore({
-    required String coloration, // 'bleu/pâle', 'corps rose extrémités bleues', 'tout rose'
-    required int heartRate, // 0 for absent, 1 for <100, 2 for >100 (or pass the string)
+    required String
+        coloration, // 'bleu/pâle', 'corps rose extrémités bleues', 'tout rose'
+    required int
+        heartRate, // 0 for absent, 1 for <100, 2 for >100 (or pass the string)
     required String reflex, // 'aucune réaction', 'grimace', 'cri/éternuement'
     required String tonus, // 'flasque', 'faible', 'bon'
     required String respiration, // 'absente', 'faible irrégulière', 'régulière'
@@ -45,24 +47,39 @@ class ApgarEvaluator {
     int score = 0;
 
     // Appearance
-    if (coloration == 'tout rose') score += 2;
-    else if (coloration == 'corps rose extrémités bleues') score += 1;
+    if (coloration == 'tout rose') {
+      score += 2;
+    } else if (coloration == 'corps rose extrémités bleues') {
+      score += 1;
+    }
 
     // Pulse (heart rate)
-    if (heartRate > 100) score += 2;
-    else if (heartRate >= 100) score += 1;
+    if (heartRate > 100) {
+      score += 2;
+    } else if (heartRate >= 100) {
+      score += 1;
+    }
 
     // Grimace (reflex)
-    if (reflex == 'cri/éternuement') score += 2;
-    else if (reflex == 'grimace') score += 1;
+    if (reflex == 'cri/éternuement') {
+      score += 2;
+    } else if (reflex == 'grimace') {
+      score += 1;
+    }
 
     // Activity (tonus)
-    if (tonus == 'bon') score += 2;
-    else if (tonus == 'faible') score += 1;
+    if (tonus == 'bon') {
+      score += 2;
+    } else if (tonus == 'faible') {
+      score += 1;
+    }
 
     // Respiration
-    if (respiration == 'régulière/cri') score += 2;
-    else if (respiration == 'faible irrégulière') score += 1;
+    if (respiration == 'régulière/cri') {
+      score += 2;
+    } else if (respiration == 'faible irrégulière') {
+      score += 1;
+    }
 
     return score;
   }
@@ -76,25 +93,42 @@ class ApgarEvaluator {
     required String respiration,
   }) {
     int heartRateScore = 0;
-    if (heartRate == '>100/min') heartRateScore = 2;
-    else if (heartRate == '<100/min') heartRateScore = 1;
+    if (heartRate == '>100/min') {
+      heartRateScore = 2;
+    } else if (heartRate == '<100/min') {
+      heartRateScore = 1;
+    }
 
     int score = 0;
-    if (coloration == 'tout rose') score += 2;
-    else if (coloration == 'corps rose extrémités bleues') score += 1;
+    if (coloration == 'tout rose') {
+      score += 2;
+    } else if (coloration == 'corps rose extrémités bleues') {
+      score += 1;
+    }
     score += heartRateScore;
-    if (reflex == 'cri/éternuement') score += 2;
-    else if (reflex == 'grimace') score += 1;
-    if (tonus == 'bon') score += 2;
-    else if (tonus == 'faible') score += 1;
-    if (respiration == 'régulière/cri') score += 2;
-    else if (respiration == 'faible irrégulière') score += 1;
+    if (reflex == 'cri/éternuement') {
+      score += 2;
+    } else if (reflex == 'grimace') {
+      score += 1;
+    }
+    if (tonus == 'bon') {
+      score += 2;
+    } else if (tonus == 'faible') {
+      score += 1;
+    }
+    if (respiration == 'régulière/cri') {
+      score += 2;
+    } else if (respiration == 'faible irrégulière') {
+      score += 1;
+    }
 
     return score;
   }
 
   /// Evaluates APGAR score and returns severity and message
-  static ({String severity, String message, bool isCritical}) evaluateApgar(int? score, {int minute = 1}) {
+  static ({String severity, String message, bool isCritical}) evaluateApgar(
+      int? score,
+      {int minute = 1}) {
     if (score == null) {
       return (
         severity: AppConstants.alertSeverityInfo,
@@ -106,13 +140,15 @@ class ApgarEvaluator {
     if (score < AppConstants.apgarEmergency) {
       return (
         severity: AppConstants.alertSeverityCritical,
-        message: '🔴 APGAR CRITIQUE: $score/10 à $minute minute - Réanimation immédiate',
+        message:
+            '🔴 APGAR CRITIQUE: $score/10 à $minute minute - Réanimation immédiate',
         isCritical: true,
       );
     } else if (score < AppConstants.apgarWarning) {
       return (
         severity: AppConstants.alertSeverityWarning,
-        message: '🟠 APGAR BAS: $score/10 à $minute minute - Surveillance étroite',
+        message:
+            '🟠 APGAR BAS: $score/10 à $minute minute - Surveillance étroite',
         isCritical: false,
       );
     } else if (score >= AppConstants.apgarNormalMin) {

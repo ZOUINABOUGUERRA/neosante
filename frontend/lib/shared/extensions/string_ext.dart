@@ -1,7 +1,6 @@
 import 'package:intl/intl.dart';
 import 'dart:convert';
 
-
 /// Extension methods for String to simplify common string operations.
 extension StringExtension on String {
   /// Returns true if the string is null or empty

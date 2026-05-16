@@ -87,7 +87,6 @@ class _Step3BirthDataState extends State<Step3BirthData> {
   void _evaluateAlerts() {
     final List<String> alerts = [];
 
-    // Evaluate glucose
     final glucose = double.tryParse(_glucoseController.text);
     if (glucose != null) {
       final evaluation = GlucoseCalculator.evaluateGlucose(glucose);
@@ -96,22 +95,23 @@ class _Step3BirthDataState extends State<Step3BirthData> {
       }
     }
 
-    // Evaluate temperature
     final temp = double.tryParse(_temperatureController.text);
     if (temp != null) {
       if (temp < AppConstants.temperatureEmergency) {
         alerts.add(
-            '🔴 TEMPÉRATURE CRITIQUE: ${temp.toStringAsFixed(1)}°C - Hypothermie sévère');
+          '🔴 TEMPÉRATURE CRITIQUE: ${temp.toStringAsFixed(1)}°C - Hypothermie sévère',
+        );
       } else if (temp < AppConstants.temperatureHypothermia) {
         alerts.add(
-            '🟠 HYPOTHERMIE: ${temp.toStringAsFixed(1)}°C - Réchauffement nécessaire');
+          '🟠 HYPOTHERMIE: ${temp.toStringAsFixed(1)}°C - Réchauffement nécessaire',
+        );
       } else if (temp > AppConstants.temperatureFever) {
         alerts.add(
-            '🔴 RISQUE INFECTIEUX: ${temp.toStringAsFixed(1)}°C - Évaluation urgente');
+          '🔴 RISQUE INFECTIEUX: ${temp.toStringAsFixed(1)}°C - Évaluation urgente',
+        );
       }
     }
 
-    // Evaluate APGAR
     final apgar1 = int.tryParse(_apgar1Controller.text);
     if (apgar1 != null) {
       final evaluation = ApgarEvaluator.evaluateApgar(apgar1, minute: 1);
@@ -120,7 +120,6 @@ class _Step3BirthDataState extends State<Step3BirthData> {
       }
     }
 
-    // Evaluate other parameters
     if (_respiration == 'absente') {
       alerts.add('🔴 RESPIRATION ABSENTE - Réanimation immédiate');
     } else if (_respiration == 'faible irrégulière') {
@@ -148,170 +147,227 @@ class _Step3BirthDataState extends State<Step3BirthData> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Alerts Section
+          // ✅ Alertes - تم إصلاح الألوان
           if (_activeAlerts.isNotEmpty) ...[
-            const Text(
-              '⚠️ Alertes détectées',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                // ✅ إصلاح: استخدام withValues بدلاً من shade50
+                color: Colors.red.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.warning, color: Colors.red, size: 20),
+                      SizedBox(width: 8),
+                      Text(
+                        '⚠️ Alertes détectées',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ..._activeAlerts.map(
+                    (alert) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: AlertCard(
+                        message: alert,
+                        severity: _getAlertSeverity(alert),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
-            ..._activeAlerts.map((alert) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: AlertCard(
-                      message: alert, severity: _getAlertSeverity(alert)),
-                )),
             const SizedBox(height: 24),
           ],
 
-          // Anthropometric Data
-          _buildSectionHeader('📏 Mensurations', Icons.straighten),
-          const SizedBox(height: 16),
-          Row(
+          // ✅ Mensurations
+          _buildSectionCard(
+            title: '📏 Mensurations',
+            icon: Icons.straighten,
             children: [
-              Expanded(
-                child: _buildNumberField(
-                  controller: _weightController,
-                  label: 'Poids de naissance (g)',
-                  icon: Icons.monitor_weight,
-                  suffix: 'g',
-                  onChanged: _onFieldChanged,
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildNumberField(
+                      controller: _weightController,
+                      label: 'Poids de naissance',
+                      icon: Icons.monitor_weight,
+                      suffix: 'g',
+                      onChanged: _onFieldChanged,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildNumberField(
+                      controller: _temperatureController,
+                      label: 'Température',
+                      icon: Icons.thermostat,
+                      suffix: '°C',
+                      decimal: true,
+                      onChanged: _onFieldChanged,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildNumberField(
-                  controller: _temperatureController,
-                  label: 'Température (°C)',
-                  icon: Icons.thermostat,
-                  suffix: '°C',
-                  decimal: true,
-                  onChanged: _onFieldChanged,
-                ),
+              const SizedBox(height: 16),
+              _buildNumberField(
+                controller: _glucoseController,
+                label: 'Glycémie',
+                icon: Icons.science,
+                suffix: 'mg/dL',
+                decimal: true,
+                onChanged: _onFieldChanged,
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          _buildNumberField(
-            controller: _glucoseController,
-            label: 'Glycémie (mg/dL)',
-            icon: Icons.science,
-            suffix: 'mg/dL',
-            decimal: true,
-            onChanged: _onFieldChanged,
-          ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
-          // APGAR Scores
-          _buildSectionHeader('📊 Score APGAR', Icons.assessment),
-          const SizedBox(height: 16),
-          Row(
+          // ✅ APGAR
+          _buildSectionCard(
+            title: '📊 Score APGAR',
+            icon: Icons.assessment,
             children: [
-              Expanded(
-                child: _buildNumberField(
-                  controller: _apgar1Controller,
-                  label: 'APGAR 1 minute',
-                  icon: Icons.timer,
-                  suffix: '/10',
-                  onChanged: _onFieldChanged,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildNumberField(
-                  controller: _apgar5Controller,
-                  label: 'APGAR 5 minutes',
-                  icon: Icons.timer,
-                  suffix: '/10',
-                  onChanged: _onFieldChanged,
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildNumberField(
+                      controller: _apgar1Controller,
+                      label: 'APGAR 1 minute',
+                      icon: Icons.timer,
+                      suffix: '/10',
+                      onChanged: _onFieldChanged,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildNumberField(
+                      controller: _apgar5Controller,
+                      label: 'APGAR 5 minutes',
+                      icon: Icons.timer,
+                      suffix: '/10',
+                      onChanged: _onFieldChanged,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
-          // Clinical Evaluation
-          _buildSectionHeader(
-              '🩺 Évaluation clinique', Icons.medical_information),
-          const SizedBox(height: 16),
-          _buildDropdown(
-            label: 'Coloration',
-            value: _coloration,
-            items: const [
-              DropdownMenuItem(value: 'bleu/pâle', child: Text('Bleu / Pâle')),
-              DropdownMenuItem(
-                value: 'corps rose extrémités bleues',
-                child: Text('Corps rose, extrémités bleues'),
+          // ✅ Évaluation clinique
+          _buildSectionCard(
+            title: '🩺 Évaluation clinique',
+            icon: Icons.medical_information,
+            children: [
+              _buildDropdown(
+                label: 'Coloration',
+                value: _coloration,
+                items: const [
+                  DropdownMenuItem(
+                    value: 'bleu/pâle',
+                    child: Text(' Bleu / Pâle'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'corps rose extrémités bleues',
+                    child: Text('Corps rose, extrémités bleues'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'tout rose',
+                    child: Text('Tout rose'),
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() => _coloration = value!);
+                  _evaluateAlerts();
+                  _notifyParent();
+                },
               ),
-              DropdownMenuItem(value: 'tout rose', child: Text('Tout rose')),
+              const SizedBox(height: 16),
+              _buildDropdown(
+                label: 'Respiration',
+                value: _respiration,
+                items: const [
+                  DropdownMenuItem(value: 'absente', child: Text('❌ Absente')),
+                  DropdownMenuItem(
+                    value: 'faible irrégulière',
+                    child: Text('🟡 Faible / Irrégulière'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'régulière',
+                    child: Text('✅ Régulière'),
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() => _respiration = value!);
+                  _evaluateAlerts();
+                  _notifyParent();
+                },
+              ),
+              const SizedBox(height: 16),
+              _buildDropdown(
+                label: 'Cri',
+                value: _cry,
+                items: const [
+                  DropdownMenuItem(value: 'absent', child: Text(' Absent')),
+                  DropdownMenuItem(
+                    value: 'irrégulier',
+                    child: Text(' Irrégulier'),
+                  ),
+                  DropdownMenuItem(value: 'fort', child: Text('Fort')),
+                ],
+                onChanged: (value) {
+                  setState(() => _cry = value!);
+                  _evaluateAlerts();
+                  _notifyParent();
+                },
+              ),
+              const SizedBox(height: 16),
+              _buildDropdown(
+                label: 'Tonus',
+                value: _tonus,
+                items: const [
+                  DropdownMenuItem(value: 'flasque', child: Text(' Flasque')),
+                  DropdownMenuItem(value: 'faible', child: Text(' Faible')),
+                  DropdownMenuItem(value: 'bon', child: Text(' Bon')),
+                ],
+                onChanged: (value) {
+                  setState(() => _tonus = value!);
+                  _evaluateAlerts();
+                  _notifyParent();
+                },
+              ),
             ],
-            onChanged: (value) {
-              setState(() => _coloration = value!);
-              _evaluateAlerts();
-              _notifyParent();
-            },
           ),
-          const SizedBox(height: 16),
-          _buildDropdown(
-            label: 'Respiration',
-            value: _respiration,
-            items: const [
-              DropdownMenuItem(value: 'absente', child: Text('Absente')),
-              DropdownMenuItem(
-                  value: 'faible irrégulière',
-                  child: Text('Faible / Irrégulière')),
-              DropdownMenuItem(value: 'régulière', child: Text('Régulière')),
-            ],
-            onChanged: (value) {
-              setState(() => _respiration = value!);
-              _evaluateAlerts();
-              _notifyParent();
-            },
-          ),
-          const SizedBox(height: 16),
-          _buildDropdown(
-            label: 'Cri',
-            value: _cry,
-            items: const [
-              DropdownMenuItem(value: 'absent', child: Text('Absent')),
-              DropdownMenuItem(value: 'irrégulier', child: Text('Irrégulier')),
-              DropdownMenuItem(value: 'fort', child: Text('Fort')),
-            ],
-            onChanged: (value) {
-              setState(() => _cry = value!);
-              _evaluateAlerts();
-              _notifyParent();
-            },
-          ),
-          const SizedBox(height: 16),
-          _buildDropdown(
-            label: 'Tonus',
-            value: _tonus,
-            items: const [
-              DropdownMenuItem(value: 'flasque', child: Text('Flasque')),
-              DropdownMenuItem(value: 'faible', child: Text('Faible')),
-              DropdownMenuItem(value: 'bon', child: Text('Bon')),
-            ],
-            onChanged: (value) {
-              setState(() => _tonus = value!);
-              _evaluateAlerts();
-              _notifyParent();
-            },
-          ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
-          // Malformations
-          _buildSectionHeader('🔍 Malformations', Icons.warning),
-          const SizedBox(height: 16),
-          _buildTextField(
-            controller: _malformationsController,
-            label: 'Malformations / Problèmes médicaux',
-            icon: Icons.healing,
-            maxLines: 3,
-            onChanged: (_) => _notifyParent(),
+          // ✅ Malformations
+          _buildSectionCard(
+            title: '🔍 Malformations',
+            icon: Icons.warning,
+            children: [
+              _buildTextField(
+                controller: _malformationsController,
+                label: 'Malformations / Problèmes médicaux',
+                icon: Icons.healing,
+                maxLines: 3,
+                hint: 'Aucune malformation signalée...',
+                onChanged: (_) => _notifyParent(),
+              ),
+            ],
           ),
         ],
       ),
@@ -319,26 +375,59 @@ class _Step3BirthDataState extends State<Step3BirthData> {
   }
 
   String _getAlertSeverity(String alert) {
-    if (alert.contains('🔴') || alert.contains('CRITIQUE')) {
-      return 'critical';
-    } else if (alert.contains('🟠')) {
-      return 'warning';
-    } else if (alert.contains('🟡')) {
-      return 'medium';
-    }
+    if (alert.contains('🔴') || alert.contains('CRITIQUE')) return 'critical';
+    if (alert.contains('🟠')) return 'warning';
+    if (alert.contains('🟡')) return 'medium';
     return 'info';
   }
 
-  Widget _buildSectionHeader(String title, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, color: AppColors.medicalBlue, size: 24),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+  Widget _buildSectionCard({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.medicalBlue.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: AppColors.medicalBlue, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            ...children,
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -348,14 +437,29 @@ class _Step3BirthDataState extends State<Step3BirthData> {
     IconData? icon,
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
+    String? hint,
     Function(String)? onChanged,
   }) {
     return TextFormField(
       controller: controller,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: icon != null ? Icon(icon) : null,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        hintText: hint,
+        prefixIcon: icon != null
+            ? Icon(icon, color: AppColors.medicalBlue)
+            : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Colors.grey),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.medicalBlue, width: 2),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
       keyboardType: keyboardType,
       maxLines: maxLines,
@@ -375,9 +479,22 @@ class _Step3BirthDataState extends State<Step3BirthData> {
       controller: controller,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: icon != null ? Icon(icon) : null,
+        prefixIcon: icon != null
+            ? Icon(icon, color: AppColors.medicalBlue)
+            : null,
         suffixText: suffix,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Colors.grey),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.medicalBlue, width: 2),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
       keyboardType: decimal
           ? const TextInputType.numberWithOptions(decimal: true)
@@ -396,7 +513,14 @@ class _Step3BirthDataState extends State<Step3BirthData> {
       initialValue: value,
       decoration: InputDecoration(
         labelText: label,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Colors.grey),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
       ),
       items: items,
       onChanged: onChanged,

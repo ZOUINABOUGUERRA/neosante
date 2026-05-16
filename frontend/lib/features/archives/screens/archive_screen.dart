@@ -1,5 +1,3 @@
-// frontend/lib/features/archives/screens/archive_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -38,7 +36,6 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
     if (_isAdmin != isAdminNow) {
       setState(() => _isAdmin = isAdminNow);
     }
-    // Charger les archives appropriées
     final notifier = ref.read(archiveProvider.notifier);
     if (_isAdmin) {
       await notifier.loadAllArchives();
@@ -51,21 +48,21 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
     final filteredArchives = ref.watch(filteredArchivesProvider);
     final isDesktop = MediaQuery.of(context).size.width > 800;
 
-    // Apply type filter
     final displayArchives = _applyTypeFilter(filteredArchives);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isAdmin ? 'Archives (Tous les utilisateurs)' : 'Archives'),
+        title: Text(_isAdmin ? '📦 Archives (Tous)' : '📦 Archives'),
         backgroundColor: Colors.transparent,
+        elevation: 0,
         actions: [
-          // Search button
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () => _showSearchDialog(),
+            tooltip: 'Rechercher',
           ),
-          // More options
           PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
             onSelected: (value) {
               if (value == 'delete_old') {
                 _showDeleteOldDialog();
@@ -74,65 +71,92 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(value: 'stats', child: Text('Statistiques')),
               const PopupMenuItem(
-                  value: 'delete_old',
-                  child: Text('Supprimer les anciennes archives')),
+                value: 'stats',
+                child: Row(
+                  children: [
+                    Icon(Icons.bar_chart, size: 18),
+                    SizedBox(width: 8),
+                    Text('📊 Statistiques'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'delete_old',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_sweep, size: 18),
+                    SizedBox(width: 8),
+                    Text('🗑️ Supprimer anciennes'),
+                  ],
+                ),
+              ),
             ],
           ),
         ],
       ),
       body: Column(
         children: [
-          // Filter chips
+          // ✅ Filter chips
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  _buildFilterChip('Tous', 'all', archiveState.totalCount),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('👶 Prématurés', 'premature',
-                      archiveState.prematureCount),
+                  _buildFilterChip('📋 Tous', 'all', archiveState.totalCount),
                   const SizedBox(width: 8),
                   _buildFilterChip(
-                      '🍼 À terme', 'fullterm', archiveState.fullTermCount),
+                    '👶 Prématurés',
+                    'premature',
+                    archiveState.prematureCount,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(
+                    '🍼 À terme',
+                    'fullterm',
+                    archiveState.fullTermCount,
+                  ),
                 ],
               ),
             ),
           ),
-          // Archive count
+          // ✅ Archive count
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '${displayArchives.length} dossier(s) archivé(s)',
-                  style: TextStyle(color: Colors.grey[600]),
+                  '📁 ${displayArchives.length} dossier(s) archivé(s)',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 if (_searchController.text.isNotEmpty)
                   Chip(
-                    label: Text('Recherche: ${_searchController.text}'),
+                    avatar: const Icon(Icons.search, size: 16),
+                    label: Text('🔍 ${_searchController.text}'),
                     onDeleted: () {
                       _searchController.clear();
                       ref.read(archiveSearchProvider.notifier).state = '';
                     },
+                    deleteIcon: const Icon(Icons.close, size: 16),
                   ),
               ],
             ),
           ),
           const SizedBox(height: 8),
-          // Archive list
+          // ✅ Archive list
           Expanded(
             child: archiveState.isLoading && displayArchives.isEmpty
                 ? const Center(child: CircularProgressIndicator())
                 : displayArchives.isEmpty
-                    ? _buildEmptyState()
-                    : isDesktop
-                        ? _buildDesktopGrid(displayArchives)
-                        : _buildMobileList(displayArchives),
+                ? _buildEmptyState()
+                : isDesktop
+                ? _buildDesktopGrid(displayArchives)
+                : _buildMobileList(displayArchives),
           ),
         ],
       ),
@@ -148,17 +172,23 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
         setState(() => _selectedFilter = selected ? value : 'all');
       },
       backgroundColor: Colors.grey.shade100,
-      selectedColor: AppColors.medicalBlue.withValues(alpha: 0.2),
-      checkmarkColor: AppColors.medicalBlue,
+      selectedColor: AppColors.medicalBlue,
+      checkmarkColor: isSelected ? Colors.white : null,
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.white : Colors.grey.shade700,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      ),
     );
   }
 
   List<Map<String, dynamic>> _applyTypeFilter(
-      List<Map<String, dynamic>> archives) {
+    List<Map<String, dynamic>> archives,
+  ) {
     if (_selectedFilter == 'all') return archives;
 
     return archives.where((archive) {
-      final isPremature = archive['originalCollection'] ==
+      final isPremature =
+          archive['originalCollection'] ==
               AppConstants.dossiersPrematuresCollection ||
           archive['serviceType'] == AppConstants.servicePremature;
       return _selectedFilter == 'premature' ? isPremature : !isPremature;
@@ -170,11 +200,11 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.archive, size: 80, color: Colors.grey[400]),
+          Icon(Icons.archive_outlined, size: 80, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
-            'Aucune archive',
-            style: TextStyle(color: Colors.grey[600]),
+            '📭 Aucune archive',
+            style: TextStyle(color: Colors.grey[600], fontSize: 16),
           ),
           const SizedBox(height: 8),
           Text(
@@ -191,96 +221,114 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        childAspectRatio: 0.9,
+        childAspectRatio: 0.85,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
       ),
       itemCount: archives.length,
-      itemBuilder: (context, index) {
-        final archive = archives[index];
-        return _buildArchiveCard(archive);
-      },
+      itemBuilder: (context, index) => _buildArchiveCard(archives[index]),
     );
   }
 
   Widget _buildMobileList(List<Map<String, dynamic>> archives) {
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       itemCount: archives.length,
-      itemBuilder: (context, index) {
-        final archive = archives[index];
-        return _buildArchiveCard(archive);
-      },
+      itemBuilder: (context, index) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: _buildArchiveCard(archives[index]),
+      ),
     );
   }
 
   Widget _buildArchiveCard(Map<String, dynamic> archive) {
     final archivedAt = archive['archivedAt'] as Timestamp?;
     final archivedDate = archivedAt?.toDate() ?? DateTime.now();
-    final isPremature = archive['originalCollection'] ==
+    final isPremature =
+        archive['originalCollection'] ==
             AppConstants.dossiersPrematuresCollection ||
         archive['serviceType'] == AppConstants.servicePremature;
-
-    // Afficher le créateur si admin
     final createdBy = _isAdmin ? archive['createdBy'] ?? 'Inconnu' : null;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: InkWell(
         onTap: () => _showArchiveDetails(archive),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header with type badge
+              // ✅ Header
               Row(
                 children: [
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
                     decoration: BoxDecoration(
                       color: isPremature
-                          ? Colors.purple.withValues(alpha: 0.2)
-                          : AppColors.stableGreen.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(12),
+                          ? Colors.purple.withValues(alpha: 0.15)
+                          : AppColors.stableGreen.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Text(
-                      isPremature ? 'Prématuré' : 'À terme',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color:
-                            isPremature ? Colors.purple : AppColors.stableGreen,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          isPremature ? '👶' : '🍼',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          isPremature ? 'Prématuré' : 'À terme',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isPremature
+                                ? Colors.purple
+                                : AppColors.stableGreen,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const Spacer(),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: Colors.grey.withValues(alpha: 0.2),
+                      color: Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       archive['dossierNumber'] ?? 'N/A',
-                      style: const TextStyle(fontSize: 10, color: Colors.grey),
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-              // Patient info
+
+              // ✅ Patient info
               Row(
                 children: [
-                  CircleAvatar(
-                    backgroundColor: AppColors.medicalBlue.withValues(alpha: 0.1),
-                    child:
-                        const Icon(Icons.archive, color: AppColors.medicalBlue),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.medicalBlue.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.archive,
+                      color: AppColors.medicalBlue,
+                      size: 24,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -290,18 +338,24 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
                         Text(
                           archive['newbornName'] ?? 'Nouveau-né',
                           style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         Text(
-                          'Mère: ${archive['motherName'] ?? 'N/A'}',
-                          style:
-                              const TextStyle(fontSize: 12, color: Colors.grey),
+                          '👩 Mère: ${archive['motherName'] ?? 'N/A'}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
                         ),
                         if (_isAdmin && createdBy != null)
                           Text(
-                            'Créé par: $createdBy',
+                            '👤 Créé par: $createdBy',
                             style: const TextStyle(
-                                fontSize: 10, color: Colors.grey),
+                              fontSize: 10,
+                              color: Colors.grey,
+                            ),
                           ),
                       ],
                     ),
@@ -309,21 +363,29 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              // Medical info
+
+              // ✅ Medical info
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _buildInfoChip(Icons.calendar_today,
-                      '${archive['gestationalAge'] ?? '?'} SA'),
-                  _buildInfoChip(Icons.monitor_weight,
-                      '${archive['birthWeight'] ?? '?'} g'),
-                  _buildInfoChip(Icons.access_time,
-                      DateFormat('dd/MM/yyyy', 'fr_FR').format(archivedDate)),
+                  _buildInfoChip(
+                    Icons.calendar_today,
+                    '📅 ${archive['gestationalAge'] ?? '?'} SA',
+                  ),
+                  _buildInfoChip(
+                    Icons.monitor_weight,
+                    '⚖️ ${archive['birthWeight'] ?? '?'} g',
+                  ),
+                  _buildInfoChip(
+                    Icons.access_time,
+                    '📆 ${DateFormat('dd/MM/yyyy', 'fr_FR').format(archivedDate)}',
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
-              // Action buttons
+
+              // ✅ Action buttons
               Row(
                 children: [
                   Expanded(
@@ -335,26 +397,31 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
                           ? const SizedBox(
                               width: 16,
                               height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.restore),
-                      label: const Text('Restaurer'),
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.restore, size: 18),
+                      label: const Text('📂 Restaurer'),
                       style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () => _deleteArchive(archive['id']),
-                      icon: const Icon(Icons.delete_forever),
-                      label: const Text('Supprimer'),
+                      icon: const Icon(Icons.delete_forever, size: 18),
+                      label: const Text('🗑️ Supprimer'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.emergencyRed,
                         side: const BorderSide(color: AppColors.emergencyRed),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
                     ),
                   ),
@@ -369,17 +436,17 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
 
   Widget _buildInfoChip(IconData icon, String label) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: Colors.grey[600]),
-          const SizedBox(width: 4),
-          Text(label, style: const TextStyle(fontSize: 11)),
+          Icon(icon, size: 14, color: Colors.grey[600]),
+          const SizedBox(width: 6),
+          Text(label, style: const TextStyle(fontSize: 12)),
         ],
       ),
     );
@@ -387,24 +454,27 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
 
   Future<void> _restoreArchive(String archiveId) async {
     final confirmed = await context.showConfirmationDialog(
-      title: 'Restaurer le dossier',
-      message: 'Êtes-vous sûr de vouloir restaurer ce dossier ?\n\n'
-          'Il sera réactivé dans la liste des dossiers actifs.',
+      title: '📂 Restaurer le dossier',
+      message:
+          'Êtes-vous sûr de vouloir restaurer ce dossier ?\n\n'
+          '✅ Il sera réactivé dans la liste des dossiers actifs.',
       confirmText: 'Restaurer',
+      confirmColor: AppColors.stableGreen,
     );
 
     if (confirmed != true) return;
 
     setState(() => _isRestoring = true);
     try {
-      final restoredId =
-          await ref.read(archiveProvider.notifier).restoreArchive(archiveId);
+      final restoredId = await ref
+          .read(archiveProvider.notifier)
+          .restoreArchive(archiveId);
       if (mounted && restoredId != null) {
-        context.showSuccessSnackBar('Dossier restauré avec succès');
+        context.showSuccessSnackBar('✅ Dossier restauré avec succès');
       }
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Erreur lors de la restauration');
+        context.showErrorSnackBar('❌ Erreur lors de la restauration');
       }
     } finally {
       setState(() => _isRestoring = false);
@@ -413,9 +483,10 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
 
   Future<void> _deleteArchive(String archiveId) async {
     final confirmed = await context.showConfirmationDialog(
-      title: 'Supprimer définitivement',
-      message: '⚠️ Attention : Cette action est irréversible.\n\n'
-          'Le dossier sera définitivement supprimé de la base de données.\n\n'
+      title: '⚠️ Supprimer définitivement',
+      message:
+          '⚠️ Attention : Cette action est irréversible.\n\n'
+          '🗑️ Le dossier sera définitivement supprimé de la base de données.\n\n'
           'Êtes-vous sûr de vouloir continuer ?',
       confirmText: 'Supprimer',
       confirmColor: AppColors.emergencyRed,
@@ -428,11 +499,11 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
           .read(archiveProvider.notifier)
           .deleteArchivePermanently(archiveId);
       if (mounted && success) {
-        context.showSuccessSnackBar('Archive supprimée');
+        context.showSuccessSnackBar('🗑️ Archive supprimée');
       }
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Erreur lors de la suppression');
+        context.showErrorSnackBar('❌ Erreur lors de la suppression');
       }
     }
   }
@@ -444,7 +515,7 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) => DraggableScrollableSheet(
         initialChildSize: 0.8,
@@ -453,13 +524,13 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
         expand: false,
         builder: (context, scrollController) => SingleChildScrollView(
           controller: scrollController,
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Center(
                 child: Container(
-                  width: 40,
+                  width: 50,
                   height: 4,
                   decoration: BoxDecoration(
                     color: Colors.grey[300],
@@ -469,38 +540,56 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
               ),
               const SizedBox(height: 20),
               const Text(
-                'Détails de l\'archive',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                '📋 Détails de l\'archive',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 16),
-              _buildDetailSection('👶 Nouveau-né', [
-                _buildDetailRow('Nom', archive['newbornName'] ?? 'N/A'),
-                _buildDetailRow(
+              const SizedBox(height: 20),
+              _buildDetailSection(
+                '👶 Nouveau-né',
+                Icons.baby_changing_station,
+                [
+                  _buildDetailRow('Nom', archive['newbornName'] ?? 'N/A'),
+                  _buildDetailRow(
                     'Date naissance',
                     archive['birthDateTime'] != null
                         ? DateFormat('dd/MM/yyyy HH:mm', 'fr_FR').format(
-                            (archive['birthDateTime'] as Timestamp).toDate())
-                        : 'N/A'),
-                _buildDetailRow('Âge gestationnel',
-                    '${archive['gestationalAge'] ?? '?'} SA'),
-                _buildDetailRow('Poids', '${archive['birthWeight'] ?? '?'} g'),
-              ]),
+                            (archive['birthDateTime'] as Timestamp).toDate(),
+                          )
+                        : 'N/A',
+                  ),
+                  _buildDetailRow(
+                    'Âge gestationnel',
+                    '${archive['gestationalAge'] ?? '?'} SA',
+                  ),
+                  _buildDetailRow(
+                    'Poids',
+                    '${archive['birthWeight'] ?? '?'} g',
+                  ),
+                ],
+              ),
               const SizedBox(height: 16),
-              _buildDetailSection('👩 Mère', [
+              _buildDetailSection('👩 Mère', Icons.woman, [
                 _buildDetailRow('Nom', archive['motherName'] ?? 'N/A'),
                 _buildDetailRow(
-                    'Mode accouchement', archive['deliveryMethod'] ?? 'N/A'),
+                  'Mode accouchement',
+                  archive['deliveryMethod'] ?? 'N/A',
+                ),
               ]),
               const SizedBox(height: 16),
-              _buildDetailSection('📅 Archivage', [
+              _buildDetailSection('📅 Archivage', Icons.archive, [
                 _buildDetailRow(
-                    'Date d\'archivage',
-                    archivedAt != null
-                        ? DateFormat('dd/MM/yyyy HH:mm', 'fr_FR')
-                            .format(archivedAt.toDate())
-                        : 'N/A'),
-                _buildDetailRow('Collection originale',
-                    archive['originalCollection'] ?? 'N/A'),
+                  'Date d\'archivage',
+                  archivedAt != null
+                      ? DateFormat(
+                          'dd/MM/yyyy HH:mm',
+                          'fr_FR',
+                        ).format(archivedAt.toDate())
+                      : 'N/A',
+                ),
+                _buildDetailRow(
+                  'Collection originale',
+                  archive['originalCollection'] ?? 'N/A',
+                ),
               ]),
               const SizedBox(height: 24),
               Row(
@@ -510,6 +599,9 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.close),
                       label: const Text('Fermer'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -521,6 +613,9 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
                       },
                       icon: const Icon(Icons.restore),
                       label: const Text('Restaurer'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
                     ),
                   ),
                 ],
@@ -532,15 +627,38 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
     );
   }
 
-  Widget _buildDetailSection(String title, List<Widget> children) {
-    return Card(
+  Widget _buildDetailSection(
+    String title,
+    IconData icon,
+    List<Widget> children,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(icon, color: AppColors.medicalBlue, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             ...children,
           ],
         ),
@@ -550,17 +668,22 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
 
   Widget _buildDetailRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 120,
-            child: Text(label,
-                style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            width: 130,
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 13, color: Colors.grey),
+            ),
           ),
           Expanded(
-            child: Text(value, style: const TextStyle(fontSize: 14)),
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            ),
           ),
         ],
       ),
@@ -571,13 +694,14 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Rechercher dans les archives'),
+        title: const Text('🔍 Rechercher'),
         content: TextField(
           controller: _searchController,
           autofocus: true,
           decoration: const InputDecoration(
             hintText: 'Nom, numéro de dossier...',
             border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.search),
           ),
         ),
         actions: [
@@ -602,21 +726,21 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Supprimer les anciennes archives'),
+        title: const Text('🗑️ Supprimer anciennes archives'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text('Supprimer les archives plus anciennes que :'),
             const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
               children: [
                 _buildDaysButton(30, '30 jours'),
-                const SizedBox(width: 8),
+                _buildDaysButton(60, '60 jours'),
                 _buildDaysButton(90, '90 jours'),
-                const SizedBox(width: 8),
                 _buildDaysButton(180, '6 mois'),
-                const SizedBox(width: 8),
                 _buildDaysButton(365, '1 an'),
               ],
             ),
@@ -637,24 +761,28 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
       onPressed: () async {
         Navigator.pop(context);
         final confirmed = await context.showConfirmationDialog(
-          title: 'Confirmation',
+          title: '⚠️ Confirmation',
           message:
               'Supprimer définitivement toutes les archives de plus de $days ?\n\n'
-              'Cette action est irréversible.',
+              '🗑️ Cette action est irréversible.',
           confirmText: 'Supprimer',
           confirmColor: AppColors.emergencyRed,
         );
 
         if (confirmed == true) {
-          final count =
-              await ref.read(archiveProvider.notifier).deleteOldArchives(days);
+          final count = await ref
+              .read(archiveProvider.notifier)
+              .deleteOldArchives(days);
           if (mounted) {
-            context.showSuccessSnackBar('$count archive(s) supprimée(s)');
+            context.showSuccessSnackBar('🗑️ $count archive(s) supprimée(s)');
           }
         }
       },
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.emergencyRed,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
       child: Text(label),
     );
@@ -666,22 +794,30 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Statistiques des archives'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildStatRow('Total des archives', archiveState.totalCount),
-            _buildStatRow('Dossiers prématurés', archiveState.prematureCount),
-            _buildStatRow('Dossiers à terme', archiveState.fullTermCount),
-            const Divider(height: 24),
-            const Text('Par mois :',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            ...(stats['byMonth'] as Map<String, int>).entries.map((entry) {
-              return _buildStatRow(entry.key, entry.value);
-            }).toList(),
-          ],
+        title: const Text('📊 Statistiques'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildStatRow('📦 Total des archives', archiveState.totalCount),
+              _buildStatRow(
+                '👶 Dossiers prématurés',
+                archiveState.prematureCount,
+              ),
+              _buildStatRow('🍼 Dossiers à terme', archiveState.fullTermCount),
+              const Divider(height: 24),
+              const Text(
+                '📅 Par mois :',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ...(stats['byMonth'] as Map<String, int>).entries.map((entry) {
+                return _buildStatRow(entry.key, entry.value);
+              }),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -699,10 +835,10 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label),
+          Text(label, style: const TextStyle(fontSize: 14)),
           Text(
             value.toString(),
-            style: const TextStyle(fontWeight: FontWeight.bold),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
         ],
       ),
@@ -713,5 +849,5 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
-  }}
-  
+  }
+}

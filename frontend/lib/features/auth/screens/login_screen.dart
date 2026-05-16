@@ -5,8 +5,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../providers/auth_provider.dart';
 import '../../../core/errors/failure.dart';
 import '../../../theme/colors.dart';
-import '../../../shared/extensions/context_ext.dart';
 import '../../../core/constants/app_constants.dart';
+//import '../../../features/admin/screens/admin_dashboard.dart';
+//import '../../../features/dashboard/screens/dashboard_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -47,15 +48,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           );
       if (mounted) {
         final user = ref.read(authProvider).user;
-        if (user?.isAdmin == true) {
-          GoRouter.of(context).pushReplacementNamed('/admin/dashboard');
+        if (user?.role == AppConstants.roleAdmin) {
+          context.go('/admin/dashboard');
         } else {
-          GoRouter.of(context).pushReplacementNamed('/dashboard');
+          context.go('/dashboard');
         }
       }
     } on Failure catch (e) {
       if (mounted) {
-        context.showErrorSnackBar(e.message);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: Colors.red),
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -77,154 +80,199 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Card(
-              elevation: 20,
+              elevation: 24, // ✅ زيادة الظل
+              shadowColor: Colors.black.withValues(alpha: 0.3), // ✅ لون الظل
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(32),
+                borderRadius: BorderRadius.circular(40), // ✅ زيادة الانحناء
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.medicalBlue.withValues(alpha: 0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.baby_changing_station,
-                        size: 60,
-                        color: AppColors.medicalBlue,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'NéoSanté',
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.medicalBlue,
-                      ),
-                    ),
-                    const Text(
-                      'Système Intelligent de Néonatologie',
-                      style: TextStyle(color: AppColors.darkGray),
-                    ),
-                    const SizedBox(height: 32),
-
-                    SegmentedButton<String>(
-                      segments: const [
-                        ButtonSegment(
-                          value: 'sage-femme',
-                          label: Text('👩‍⚕️ Sage-Femme'),
-                        ),
-                        ButtonSegment(
-                          value: 'admin',
-                          label: Text('👨‍💼 Administrateur'),
-                        ),
-                      ],
-                      selected: {_selectedRole},
-                      onSelectionChanged: (set) {
-                        setState(() {
-                          _selectedRole = set.first;
-                          _updateCredentials();
-                        });
-                      },
-                      style: ButtonStyle(
-                        backgroundColor: WidgetStateProperty.resolveWith(
-                          (states) {
-                            if (states.contains(WidgetState.selected)) {
-                              return AppColors.medicalBlue;
-                            }
-                            return Colors.grey[200];
-                          },
-                        ),
-                        foregroundColor: WidgetStateProperty.resolveWith(
-                          (states) {
-                            if (states.contains(WidgetState.selected)) {
-                              return Colors.white;
-                            }
-                            return AppColors.darkGray;
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    TextField(
-                      controller: _emailController,
-                      decoration: const InputDecoration(
-                        labelText: 'Email',
-                        prefixIcon: Icon(Icons.email),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(16)),
-                        ),
-                      ),
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-                    const SizedBox(height: 16),
-
-                    TextField(
-                      controller: _passwordController,
-                      decoration: InputDecoration(
-                        labelText: 'Mot de passe',
-                        prefixIcon: const Icon(Icons.lock),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscurePassword
-                                ? Icons.visibility_off
-                                : Icons.visibility,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(40),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white,
+                      Colors.white.withValues(alpha: 0.95),
+                    ],
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // ✅ إضافة ظل للأيقونة
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [AppColors.medicalBlue, AppColors.lightBlue],
                           ),
-                          onPressed: () {
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.medicalBlue.withValues(alpha: 0.4),
+                              blurRadius: 20,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.baby_changing_station,
+                          size: 50,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'NéoSanté',
+                        style: TextStyle(
+                          fontSize: 34,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.medicalBlue,
+                        ),
+                      ),
+                      const Text(
+                        'Système Intelligent de Néonatologie',
+                        style: TextStyle(color: AppColors.darkGray),
+                      ),
+                      const SizedBox(height: 32),
+
+                      // ✅ تحسين تصميم الـ SegmentedButton
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          color: Colors.grey.withValues(alpha: 0.1),
+                        ),
+                        child: SegmentedButton<String>(
+                          segments: const [
+                            ButtonSegment(
+                              value: 'sage-femme',
+                              label: Text('👩‍⚕️ Sage-Femme'),
+                            ),
+                            ButtonSegment(
+                              value: 'admin',
+                              label: Text('👨‍💼 Administrateur'),
+                            ),
+                          ],
+                          selected: {_selectedRole},
+                          onSelectionChanged: (set) {
                             setState(() {
-                              _obscurePassword = !_obscurePassword;
+                              _selectedRole = set.first;
+                              _updateCredentials();
                             });
                           },
-                        ),
-                        border: const OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(16)),
-                        ),
-                      ),
-                      obscureText: _obscurePassword,
-                    ),
-                    const SizedBox(height: 24),
-
-                    if (_isLoading)
-                      const Center(child: CircularProgressIndicator())
-                    else
-                      ElevatedButton(
-                        onPressed: _login,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.medicalBlue,
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size(double.infinity, 50),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                          style: ButtonStyle(
+                            backgroundColor: WidgetStateProperty.resolveWith(
+                              (states) {
+                                if (states.contains(WidgetState.selected)) {
+                                  return AppColors.medicalBlue;
+                                }
+                                return Colors.transparent;
+                              },
+                            ),
+                            foregroundColor: WidgetStateProperty.resolveWith(
+                              (states) {
+                                if (states.contains(WidgetState.selected)) {
+                                  return Colors.white;
+                                }
+                                return AppColors.darkGray;
+                              },
+                            ),
                           ),
                         ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // ✅ تحسين تصميم حقول الإدخال
+                      TextField(
+                        controller: _emailController,
+                        decoration: InputDecoration(
+                          labelText: 'Email',
+                          prefixIcon: const Icon(Icons.email, color: AppColors.medicalBlue),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(20),
+                            borderSide: BorderSide.none,
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey.withValues(alpha: 0.1),
+                        ),
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                      const SizedBox(height: 16),
+
+                      TextField(
+                        controller: _passwordController,
+                        decoration: InputDecoration(
+                          labelText: 'Mot de passe',
+                          prefixIcon: const Icon(Icons.lock, color: AppColors.medicalBlue),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                              color: AppColors.medicalBlue,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _obscurePassword = !_obscurePassword;
+                              });
+                            },
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(20),
+                            borderSide: BorderSide.none,
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey.withValues(alpha: 0.1),
+                        ),
+                        obscureText: _obscurePassword,
+                      ),
+                      const SizedBox(height: 24),
+
+                      if (_isLoading)
+                        const Center(child: CircularProgressIndicator())
+                      else
+                        // ✅ تحسين تصميم الزر
+                        ElevatedButton(
+                          onPressed: _login,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.medicalBlue,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(double.infinity, 55),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            elevation: 5,
+                            shadowColor: AppColors.medicalBlue.withValues(alpha: 0.5),
+                          ),
+                          child: const Text(
+                            'Se connecter',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      const SizedBox(height: 16),
+
+                      TextButton(
+                        onPressed: () {
+                          context.pushNamed('forgot-password');
+                        },
                         child: const Text(
-                          'Se connecter',
-                          style: TextStyle(fontSize: 18),
+                          'Mot de passe oublié ?',
+                          style: TextStyle(color: AppColors.medicalBlue),
                         ),
                       ),
-                    const SizedBox(height: 16),
+                      const Divider(),
+                      const SizedBox(height: 16),
 
-                    TextButton(
-                      onPressed: () {
-                        GoRouter.of(context).pushNamed('forgot-password');
-                      },
-                      child: const Text('Mot de passe oublié ?'),
-                    ),
-                    const Divider(),
-                    const SizedBox(height: 16),
-
-                    Text(
-                      'Développé par NéoSanté Medical Team',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                    ),
-                  ],
-                ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.2, end: 0),
+                      Text(
+                        'Développé par NéoSanté Medical Team',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      ),
+                    ],
+                  ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.2, end: 0),
+                ),
               ),
             ),
           ),

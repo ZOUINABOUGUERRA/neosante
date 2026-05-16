@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 
 /// Centralized color definitions for the NéoSanté medical platform.
 /// All colors are based on the medical alert system and modern UI guidelines.
+/// AppColors.medicalBlue
+//AppColors.medicalBlue
 class AppColors {
+  //AppColors.medicalBlue
   // Primary medical palette
   static const Color medicalBlue = Color(0xFF2B7A78);   // Main brand color
   static const Color lightBlue = Color(0xFF3AAFA9);     // Secondary / accent
@@ -26,4 +29,5 @@ class AppColors {
   static const Color error = emergencyRed;
   static const Color warning = warningOrange;
   static const Color info = medicalBlue;
+  static const Color disabled = lightGray;
 }

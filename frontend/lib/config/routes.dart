@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../features/auth/screens/login_screen.dart';
+import '../features/auth/screens/forgot_password_screen.dart';
 import '../features/dashboard/screens/dashboard_screen.dart';
 import '../features/dossiers/screens/dossier_list_screen.dart';
 import '../features/dossiers/screens/create_dossier_screen.dart';
@@ -12,11 +13,7 @@ import '../features/ai_assistant/screens/ai_assistant_screen.dart';
 import '../features/backup/screens/backup_screen.dart';
 import '../features/settings/screens/settings_screen.dart';
 import '../routes/route_guard.dart';
-
-//import'package:neosante_frontend/features/auth/screens/forgot_password_screen.dart';
-import 'package:neosante/features/auth/screens/forgot_password_screen.dart';
-//import'package:neosante_frontend/features/auth/providers/auth_provider.dart';
-
+import '../theme/colors.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authGuard = ref.read(authGuardProvider);
@@ -58,9 +55,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/dossiers/:id',
             name: 'dossier_detail',
-            builder: (context, state) => DossierDetailScreen(
-              dossierId: state.pathParameters['id']!,
-            ),
+            builder: (context, state) =>
+                DossierDetailScreen(dossierId: state.pathParameters['id']!),
           ),
           GoRoute(
             path: '/alerts',
@@ -93,103 +89,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   );
 });
 
-class ResponsiveShell extends StatefulWidget {
+class ResponsiveShell extends ConsumerStatefulWidget {
   final Widget child;
   const ResponsiveShell({super.key, required this.child});
 
   @override
-  State<ResponsiveShell> createState() => _ResponsiveShellState();
+  ConsumerState<ResponsiveShell> createState() => _ResponsiveShellState();
 }
 
-class _ResponsiveShellState extends State<ResponsiveShell> {
+class _ResponsiveShellState extends ConsumerState<ResponsiveShell> {
   int _selectedIndex = 0;
 
   @override
-  Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width > 800;
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // ✅ تحديث selectedIndex عند تغيير المسار
     final currentPath = GoRouterState.of(context).matchedLocation;
-
-    // تحديث selectedIndex بناءً على المسار الحالي
     _updateSelectedIndex(currentPath);
-
-    if (isDesktop) {
-      return Row(
-        children: [
-          NavigationRail(
-            extended: true,
-            selectedIndex: _selectedIndex, // ✅ تم إضافة selectedIndex
-            onDestinationSelected: (index) {
-              setState(() {
-                _selectedIndex = index;
-              });
-              _navigateToDestination(index, context);
-            },
-            destinations: const [
-              NavigationRailDestination(
-                icon: Icon(Icons.dashboard),
-                label: Text('Dashboard'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.folder),
-                label: Text('Dossiers'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.warning),
-                label: Text('Alertes'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.swap_horiz),
-                label: Text('Transferts'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.assistant),
-                label: Text('AI'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.backup),
-                label: Text('Sauvegarde'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.settings),
-                label: Text('Paramètres'),
-              ),
-            ],
-          ),
-          Expanded(child: widget.child),
-        ],
-      );
-    } else {
-      return Scaffold(
-        body: widget.child,
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: _getMobileSelectedIndex(currentPath),
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard),
-              label: 'Accueil',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.folder),
-              label: 'Dossiers',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.warning),
-              label: 'Alertes',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.assistant),
-              label: 'AI',
-            ),
-          ],
-          onTap: (index) {
-            _navigateToMobileDestination(index, context);
-          },
-        ),
-      );
-    }
   }
 
-  /// تحديث selectedIndex بناءً على المسار الحالي
   void _updateSelectedIndex(String path) {
     if (path.startsWith('/dashboard')) {
       _selectedIndex = 0;
@@ -208,7 +126,6 @@ class _ResponsiveShellState extends State<ResponsiveShell> {
     }
   }
 
-  /// التنقل للأجهزة المكتبية (Desktop)
   void _navigateToDestination(int index, BuildContext context) {
     switch (index) {
       case 0:
@@ -235,7 +152,6 @@ class _ResponsiveShellState extends State<ResponsiveShell> {
     }
   }
 
-  /// الحصول على selectedIndex للشاشات الصغيرة (Mobile)
   int _getMobileSelectedIndex(String path) {
     if (path.startsWith('/dashboard')) return 0;
     if (path.startsWith('/dossiers')) return 1;
@@ -244,7 +160,6 @@ class _ResponsiveShellState extends State<ResponsiveShell> {
     return 0;
   }
 
-  /// التنقل للأجهزة المحمولة (Mobile)
   void _navigateToMobileDestination(int index, BuildContext context) {
     switch (index) {
       case 0:
@@ -259,6 +174,94 @@ class _ResponsiveShellState extends State<ResponsiveShell> {
       case 3:
         context.go('/ai-assistant');
         break;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currentPath = GoRouterState.of(context).matchedLocation;
+    final isDesktop = MediaQuery.of(context).size.width > 800;
+
+    // ✅ تحديث selectedIndex في كل بناء
+    _updateSelectedIndex(currentPath);
+
+    if (isDesktop) {
+      return Row(
+        children: [
+          NavigationRail(
+            selectedIndex: _selectedIndex,
+            onDestinationSelected: (index) {
+              setState(() {
+                _selectedIndex = index;
+              });
+              _navigateToDestination(index, context);
+            },
+            extended: true,
+            destinations: const [
+              NavigationRailDestination(
+                icon: Icon(Icons.dashboard),
+                label: Text('📊 Dashboard'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.folder),
+                label: Text('📋 Dossiers'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.warning),
+                label: Text('⚠️ Alertes'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.swap_horiz),
+                label: Text('🚑 Transferts'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.assistant),
+                label: Text('🧠 AI'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.backup),
+                label: Text('💾 Sauvegarde'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.settings),
+                label: Text('⚙️ Paramètres'),
+              ),
+            ],
+          ),
+          Expanded(child: widget.child),
+        ],
+      );
+    } else {
+      return Scaffold(
+        body: widget.child,
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: _getMobileSelectedIndex(currentPath),
+          type: BottomNavigationBarType.fixed,
+          selectedItemColor: AppColors.medicalBlue,
+          unselectedItemColor: Colors.grey,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.dashboard),
+              label: '🏠 Accueil',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.folder),
+              label: '📋 Dossiers',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.warning),
+              label: '⚠️ Alertes',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.assistant),
+              label: '🧠 AI',
+            ),
+          ],
+          onTap: (index) {
+            _navigateToMobileDestination(index, context);
+          },
+        ),
+      );
     }
   }
 }

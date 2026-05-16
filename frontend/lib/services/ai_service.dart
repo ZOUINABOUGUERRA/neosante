@@ -3,17 +3,17 @@ import 'package:http/http.dart' as http;
 import '../core/errors/failure.dart';
 
 /// AI service for Claude API integration.
-/// Provides medical analysis, summary generation, and decision support.
-/// AI is designed to ASSIST only - never replace medical professionals.
 class AIService {
-  ///static const String _claudeApiUrl = 'https://api.anthropic.com/v1/messages';
-  
-  // In production, this should be stored securely (e.g., Firebase Remote Config)
-  // For now, we'll use a Cloud Function as proxy to protect the API key
   static const String _functionUrl = 'https://us-central1-neosante.cloudfunctions.net/callClaudeAI';
 
+  /// Vérifie si l'âge gestationnel indique une prématurité (< 37 SA)
+  static bool _isPremature(dynamic gestationalAge) {
+    if (gestationalAge == null) return false;
+    final age = gestationalAge is int ? gestationalAge : int.tryParse(gestationalAge.toString());
+    return age != null && age < 37;
+  }
+
   /// Analyze neonatal dossier data and return medical insights
-  /// This is for ASSISTANCE only - final decisions remain with doctors
   static Future<String> analyzeDossier(Map<String, dynamic> dossierData) async {
     try {
       final prompt = _buildAnalysisPrompt(dossierData);
@@ -36,6 +36,42 @@ class AIService {
     } catch (e) {
       throw AIFailure(message: 'Erreur lors de l\'analyse IA: $e', originalError: e);
     }
+  }
+
+  /// Build analysis prompt for Claude
+  static String _buildAnalysisPrompt(Map<String, dynamic> dossierData) {
+    final gestationalAge = dossierData['gestationalAge'];
+    final isPremature = _isPremature(gestationalAge);
+    
+    return '''
+      Vous êtes l'assistant IA médical NéoSanté. Votre rôle est d'ASSISTER les professionnels de santé, jamais de les remplacer.
+      
+      Analysez ce dossier néonatal:
+      
+      IDENTIFICATION:
+      - Type: ${dossierData['serviceType'] == 'premature' ? 'Prématuré' : 'À terme'}
+      - Prématurité: ${isPremature ? 'Oui' : 'Non'} (${gestationalAge ?? '?'} SA)
+      - Nouveau-né: ${dossierData['newbornName'] ?? 'N/A'}
+      - Mère: ${dossierData['motherName'] ?? 'N/A'}
+      
+      DONNÉES NAISSANCE:
+      - Poids: ${dossierData['birthWeight'] ?? '?'} g
+      - Température: ${dossierData['bodyTemperature'] ?? '?'} °C
+      - Glycémie: ${dossierData['bloodGlucose'] ?? '?'} mg/dL
+      - APGAR 1min: ${dossierData['apgar1'] ?? '?'} | APGAR 5min: ${dossierData['apgar5'] ?? '?'}
+      - Coloration: ${dossierData['coloration'] ?? 'N/A'}
+      - Respiration: ${dossierData['respiration'] ?? 'N/A'}
+      - Tonus: ${dossierData['tonus'] ?? 'N/A'}
+      - Malformations: ${dossierData['malformations'] ?? 'Aucune signalée'}
+      
+      Veuillez fournir:
+      1. Résumé clinique concis (2-3 phrases)
+      2. Points de vigilance (max 3)
+      3. Recommandations générales (max 2, non contraignantes)
+      
+      Format de réponse: texte simple, pas de markdown.
+      Rappel: Vous êtes un assistant - toute décision médicale revient au professionnel.
+    ''';
   }
 
   /// Generate a medical summary for a dossier
@@ -101,7 +137,6 @@ class AIService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final text = data['analysis'] as String;
-        // Parse suggestions from text (split by line breaks or numbered list)
         return text.split('\n').where((l) => l.trim().isNotEmpty).toList();
       }
       return _getDefaultSuggestions(dossierData);
@@ -113,11 +148,14 @@ class AIService {
   /// Predict potential complications based on risk factors
   static Future<List<String>> predictRiskFactors(Map<String, dynamic> dossierData) async {
     try {
+      final gestationalAge = dossierData['gestationalAge'] as int? ?? 0;
+      final isPremature = gestationalAge < 37;
+      
       final prompt = '''
         En tant qu'outil d'aide à la décision (NE REMPLACE PAS LE JUGEMENT MÉDICAL),
         identifiez les facteurs de risque potentiels pour ce nouveau-né:
         
-        - Prématurité: ${dossierData['gestationalAge'] < 37 ? 'Oui' : 'Non'} (${dossierData['gestationalAge']} SA)
+        - Prématurité: ${isPremature ? 'Oui' : 'Non'} ($gestationalAge SA)
         - Poids naissance: ${dossierData['birthWeight']} g
         - APGAR 1min: ${dossierData['apgar1']}
         - Glycémie: ${dossierData['bloodGlucose']} mg/dL
@@ -143,39 +181,6 @@ class AIService {
     } catch (e) {
       return _getDefaultRiskFactors(dossierData);
     }
-  }
-
-  /// Build analysis prompt for Claude
-  static String _buildAnalysisPrompt(Map<String, dynamic> dossierData) {
-    return '''
-      Vous êtes l'assistant IA médical NéoSanté. Votre rôle est d'ASSISTER les professionnels de santé, jamais de les remplacer.
-      
-      Analysez ce dossier néonatal:
-      
-      IDENTIFICATION:
-      - Type: ${dossierData['serviceType'] == 'premature' ? 'Prématuré' : 'À terme'}
-      - Âge gestationnel: ${dossierData['gestationalAge']} SA
-      - Nouveau-né: ${dossierData['newbornName']}
-      - Mère: ${dossierData['motherName']}
-      
-      DONNÉES NAISSANCE:
-      - Poids: ${dossierData['birthWeight']} g
-      - Température: ${dossierData['bodyTemperature']} °C
-      - Glycémie: ${dossierData['bloodGlucose']} mg/dL
-      - APGAR 1min: ${dossierData['apgar1']} | APGAR 5min: ${dossierData['apgar5']}
-      - Coloration: ${dossierData['coloration']}
-      - Respiration: ${dossierData['respiration']}
-      - Tonus: ${dossierData['tonus']}
-      - Malformations: ${dossierData['malformations'] ?? 'Aucune signalée'}
-      
-      Veuillez fournir:
-      1. Résumé clinique concis (2-3 phrases)
-      2. Points de vigilance (max 3)
-      3. Recommandations générales (max 2, non contraignantes)
-      
-      Format de réponse: texte simple, pas de markdown.
-      Rappel: Vous êtes un assistant - toute décision médicale revient au professionnel.
-    ''';
   }
 
   /// Default suggestions fallback when AI is unavailable

@@ -28,10 +28,7 @@ class LoadingWidget extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               message!,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             ),
           ],
         ],
@@ -45,7 +42,7 @@ class LoadingWidget extends StatelessWidget {
         return SizedBox(
           width: size,
           height: size,
-          child:const  CircularProgressIndicator(
+          child: const CircularProgressIndicator(
             strokeWidth: 3,
             color: AppColors.medicalBlue,
           ),
@@ -76,23 +73,11 @@ class LoadingWidget extends StatelessWidget {
   Widget _buildSkeletonLoader() {
     return Column(
       children: [
-        Container(
-          width: double.infinity,
-          height: 100,
-          color: Colors.grey[200],
-        ),
+        Container(width: double.infinity, height: 100, color: Colors.grey[200]),
         const SizedBox(height: 12),
-        Container(
-          width: double.infinity,
-          height: 20,
-          color: Colors.grey[200],
-        ),
+        Container(width: double.infinity, height: 20, color: Colors.grey[200]),
         const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          height: 20,
-          color: Colors.grey[200],
-        ),
+        Container(width: double.infinity, height: 20, color: Colors.grey[200]),
       ],
     );
   }
@@ -135,10 +120,7 @@ class LoadingOverlay extends StatelessWidget {
                       ),
                       if (message != null) ...[
                         const SizedBox(height: 16),
-                        Text(
-                          message!,
-                          style: const TextStyle(fontSize: 16),
-                        ),
+                        Text(message!, style: const TextStyle(fontSize: 16)),
                       ],
                     ],
                   ),
@@ -256,9 +238,7 @@ class LoadingButton extends StatelessWidget {
         backgroundColor: backgroundColor ?? AppColors.medicalBlue,
         foregroundColor: foregroundColor ?? Colors.white,
         minimumSize: const Size(double.infinity, 48),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       child: isLoading
           ? const SizedBox(
@@ -272,10 +252,7 @@ class LoadingButton extends StatelessWidget {
           : Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (icon != null) ...[
-                  Icon(icon),
-                  const SizedBox(width: 8),
-                ],
+                if (icon != null) ...[Icon(icon), const SizedBox(width: 8)],
                 Text(label),
               ],
             ),
@@ -284,9 +261,4 @@ class LoadingButton extends StatelessWidget {
 }
 
 /// Enum for loading styles
-enum LoadingStyle {
-  circular,
-  linear,
-  lottie,
-  skeleton,
-}
+enum LoadingStyle { circular, linear, lottie, skeleton }

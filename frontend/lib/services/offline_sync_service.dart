@@ -9,7 +9,8 @@ import '../core/constants/app_constants.dart';
 class OfflineSyncService {
   static late Box _offlineBox;
   static late Box _syncQueue;
-  static final StreamController<bool> _syncStatusController = StreamController<bool>.broadcast();
+  static final StreamController<bool> _syncStatusController =
+      StreamController<bool>.broadcast();
   static bool _isSyncing = false;
   static Timer? _syncTimer;
 
@@ -17,13 +18,13 @@ class OfflineSyncService {
   static Future<void> initialize() async {
     _offlineBox = await Hive.openBox(AppConstants.hiveOfflineBox);
     _syncQueue = await Hive.openBox(AppConstants.hiveSyncQueueBox);
-    
+
     // Start periodic sync
     _startPeriodicSync();
-    
+
     // Listen to connectivity
-    Connectivity().onConnectivityChanged.listen((result) {
-      if (result != ConnectivityResult.none) {
+    Connectivity().onConnectivityChanged.listen((results) {
+      if (results.any((result) => result != ConnectivityResult.none)) {
         _syncPendingOperations();
       }
     });
@@ -39,14 +40,16 @@ class OfflineSyncService {
   }
 
   /// Save dossier offline when network is unavailable
-  static Future<void> saveDossierOffline(String collection, String docId, Map<String, dynamic> data) async {
+  static Future<void> saveDossierOffline(
+      String collection, String docId, Map<String, dynamic> data) async {
     final key = '$collection/$docId';
     await _offlineBox.put(key, data);
     await addToSyncQueue('create', collection, docId, data);
   }
 
   /// Add operation to sync queue
-  static Future<void> addToSyncQueue(String operation, String collection, String docId, Map<String, dynamic> data) async {
+  static Future<void> addToSyncQueue(String operation, String collection,
+      String docId, Map<String, dynamic> data) async {
     final queueItem = {
       'operation': operation,
       'collection': collection,
@@ -55,22 +58,24 @@ class OfflineSyncService {
       'timestamp': DateTime.now().toIso8601String(),
       'retryCount': 0,
     };
-    
+
     await _syncQueue.add(queueItem);
     _syncPendingOperations();
   }
 
   /// Get offline dossier
-  static Future<Map<String, dynamic>?> getOfflineDossier(String collection, String docId) async {
+  static Future<Map<String, dynamic>?> getOfflineDossier(
+      String collection, String docId) async {
     final key = '$collection/$docId';
     return _offlineBox.get(key);
   }
 
   /// Get all offline dossiers for a collection
-  static Future<List<Map<String, dynamic>>> getAllOfflineDossiers(String collection) async {
+  static Future<List<Map<String, dynamic>>> getAllOfflineDossiers(
+      String collection) async {
     final List<Map<String, dynamic>> results = [];
     final prefix = '$collection/';
-    
+
     for (final key in _offlineBox.keys) {
       final keyStr = key.toString();
       if (keyStr.startsWith(prefix)) {
@@ -80,7 +85,7 @@ class OfflineSyncService {
         }
       }
     }
-    
+
     return results;
   }
 
@@ -88,20 +93,20 @@ class OfflineSyncService {
   static Future<void> _syncPendingOperations() async {
     if (_isSyncing) return;
     if (_syncQueue.isEmpty) return;
-    
+
     // Check connectivity
-    final connectivity = await Connectivity().checkConnectivity();
-    if (connectivity == ConnectivityResult.none) return;
-    
+    final results = await Connectivity().checkConnectivity();
+    if (results.every((entry) => entry == ConnectivityResult.none)) return;
+
     _isSyncing = true;
     _syncStatusController.add(true);
-    
+
     try {
       final List<int> keysToDelete = [];
-      
+
       for (var i = 0; i < _syncQueue.length; i++) {
         final operation = _syncQueue.getAt(i) as Map<String, dynamic>;
-        
+
         try {
           switch (operation['operation']) {
             case 'create':
@@ -118,19 +123,18 @@ class OfflineSyncService {
                   .delete();
               break;
           }
-          
+
           // Success - mark for deletion
           keysToDelete.add(i);
-          
+
           // Update offline cache
           final key = '${operation['collection']}/${operation['docId']}';
           await _offlineBox.delete(key);
-          
         } catch (e) {
           // Increment retry count
           final retryCount = (operation['retryCount'] ?? 0) + 1;
           operation['retryCount'] = retryCount;
-          
+
           if (retryCount >= 5) {
             // Max retries exceeded, mark for deletion to avoid infinite loop
             keysToDelete.add(i);
@@ -140,12 +144,11 @@ class OfflineSyncService {
           }
         }
       }
-      
+
       // Delete successful operations (reverse order to maintain indices)
       for (final key in keysToDelete.reversed) {
         await _syncQueue.deleteAt(key);
       }
-      
     } finally {
       _isSyncing = false;
       _syncStatusController.add(false);
@@ -170,7 +173,8 @@ class OfflineSyncService {
   }
 
   /// Check if data is available offline
-  static Future<bool> isDataAvailableOffline(String collection, String docId) async {
+  static Future<bool> isDataAvailableOffline(
+      String collection, String docId) async {
     final key = '$collection/$docId';
     return _offlineBox.containsKey(key);
   }

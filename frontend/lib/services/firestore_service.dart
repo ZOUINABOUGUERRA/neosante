@@ -1,65 +1,74 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../core/errors/failure.dart';
+
 import '../core/constants/app_constants.dart';
+import '../core/errors/failure.dart';
 import '../shared/models/user_model.dart';
 
-/// Generic Firestore service for CRUD operations.
-/// Provides type-safe database operations with error handling.
+/// ===============================
+/// GENERIC FIRESTORE SERVICE
+/// ===============================
 class FirestoreService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance;
 
-  /// Get a document by ID
-  Future<DocumentSnapshot> getDocument(String collectionPath, String docId) async {
-    try {
-      return await _firestore.collection(collectionPath).doc(docId).get();
-    } catch (e) {
-      throw mapFirestoreExceptionToFailure(e);
-    }
-  }
-
-  /// Get a document with type conversion
-  Future<T?> getDocumentTyped<T>(
+  /// ===============================
+  /// GET SINGLE DOCUMENT
+  /// ===============================
+  Future<DocumentSnapshot<Map<String, dynamic>>> getDocument(
     String collectionPath,
     String docId,
-    T Function(Map<String, dynamic> data, String id) fromJson,
   ) async {
     try {
-      final doc = await _firestore.collection(collectionPath).doc(docId).get();
-      if (!doc.exists) return null;
-      return fromJson(doc.data() as Map<String, dynamic>, doc.id);
+      return await _firestore
+          .collection(collectionPath)
+          .doc(docId)
+          .get();
     } catch (e) {
       throw mapFirestoreExceptionToFailure(e);
     }
   }
 
-  /// Get all documents from a collection
-  Future<QuerySnapshot> getCollection(String collectionPath, {
+  /// ===============================
+  /// GET COLLECTION
+  /// ===============================
+  Future<QuerySnapshot<Map<String, dynamic>>> getCollection(
+    String collectionPath, {
     String? orderBy,
     bool descending = true,
     int? limit,
     List<Object?>? startAfter,
   }) async {
     try {
-      Query query = _firestore.collection(collectionPath);
-      
+      Query<Map<String, dynamic>> query =
+          _firestore.collection(collectionPath);
+
       if (orderBy != null) {
-        query = query.orderBy(orderBy, descending: descending);
+        query = query.orderBy(
+          orderBy,
+          descending: descending,
+        );
       }
+
       if (limit != null) {
         query = query.limit(limit);
       }
-      if (startAfter != null && startAfter.isNotEmpty) {
+
+      if (startAfter != null &&
+          startAfter.isNotEmpty) {
         query = query.startAfter(startAfter);
       }
-      
+
       return await query.get();
     } catch (e) {
       throw mapFirestoreExceptionToFailure(e);
     }
   }
 
-  /// Get documents with where clause
-  Future<QuerySnapshot> getDocumentsWhere(
+  /// ===============================
+  /// WHERE QUERY
+  /// ===============================
+  Future<QuerySnapshot<Map<String, dynamic>>>
+      getDocumentsWhere(
     String collectionPath,
     String field,
     dynamic isEqualTo, {
@@ -68,68 +77,122 @@ class FirestoreService {
     int? limit,
   }) async {
     try {
-      Query query = _firestore
-          .collection(collectionPath)
-          .where(field, isEqualTo: isEqualTo);
-      
+      Query<Map<String, dynamic>> query =
+          _firestore
+              .collection(collectionPath)
+              .where(
+                field,
+                isEqualTo: isEqualTo,
+              );
+
       if (orderBy != null) {
-        query = query.orderBy(orderBy, descending: descending);
+        query = query.orderBy(
+          orderBy,
+          descending: descending,
+        );
       }
+
       if (limit != null) {
         query = query.limit(limit);
       }
-      
+
       return await query.get();
     } catch (e) {
       throw mapFirestoreExceptionToFailure(e);
     }
   }
 
-  /// Create a new document with auto-generated ID
-  Future<String> addDocument(String collectionPath, Map<String, dynamic> data) async {
+  /// ===============================
+  /// ADD DOCUMENT
+  /// ===============================
+  Future<String> addDocument(
+    String collectionPath,
+    Map<String, dynamic> data,
+  ) async {
     try {
-      final docRef = _firestore.collection(collectionPath).doc();
+      final docRef =
+          _firestore.collection(collectionPath).doc();
+
       await docRef.set(data);
+
       return docRef.id;
     } catch (e) {
       throw mapFirestoreExceptionToFailure(e);
     }
   }
 
-  /// Create a new document with specific ID
-  Future<void> setDocument(String collectionPath, String docId, Map<String, dynamic> data) async {
+  /// ===============================
+  /// SET DOCUMENT
+  /// ===============================
+  Future<void> setDocument(
+    String collectionPath,
+    String docId,
+    Map<String, dynamic> data,
+  ) async {
     try {
-      await _firestore.collection(collectionPath).doc(docId).set(data);
+      await _firestore
+          .collection(collectionPath)
+          .doc(docId)
+          .set(data);
     } catch (e) {
       throw mapFirestoreExceptionToFailure(e);
     }
   }
 
-  /// Update a document
-  Future<void> updateDocument(String collectionPath, String docId, Map<String, dynamic> data) async {
+  /// ===============================
+  /// UPDATE DOCUMENT
+  /// ===============================
+  Future<void> updateDocument(
+    String collectionPath,
+    String docId,
+    Map<String, dynamic> data,
+  ) async {
     try {
-      await _firestore.collection(collectionPath).doc(docId).update(data);
+      await _firestore
+          .collection(collectionPath)
+          .doc(docId)
+          .update(data);
     } catch (e) {
       throw mapFirestoreExceptionToFailure(e);
     }
   }
 
-  /// Delete a document
-  Future<void> deleteDocument(String collectionPath, String docId) async {
+  /// ===============================
+  /// DELETE DOCUMENT
+  /// ===============================
+  Future<void> deleteDocument(
+    String collectionPath,
+    String docId,
+  ) async {
     try {
-      await _firestore.collection(collectionPath).doc(docId).delete();
+      await _firestore
+          .collection(collectionPath)
+          .doc(docId)
+          .delete();
     } catch (e) {
       throw mapFirestoreExceptionToFailure(e);
     }
   }
 
-  /// Stream a single document
-  Stream<DocumentSnapshot> streamDocument(String collectionPath, String docId) {
-    return _firestore.collection(collectionPath).doc(docId).snapshots();
+  /// ===============================
+  /// STREAM DOCUMENT
+  /// ===============================
+  Stream<DocumentSnapshot<Map<String, dynamic>>>
+      streamDocument(
+    String collectionPath,
+    String docId,
+  ) {
+    return _firestore
+        .collection(collectionPath)
+        .doc(docId)
+        .snapshots();
   }
 
-  /// Stream a collection with optional filters
-  Stream<QuerySnapshot> streamCollection(
+  /// ===============================
+  /// STREAM COLLECTION
+  /// ===============================
+  Stream<QuerySnapshot<Map<String, dynamic>>>
+      streamCollection(
     String collectionPath, {
     String? orderBy,
     bool descending = true,
@@ -137,43 +200,81 @@ class FirestoreService {
     dynamic whereValue,
     int? limit,
   }) {
-    Query query = _firestore.collection(collectionPath);
-    
-    if (whereField != null && whereValue != null) {
-      query = query.where(whereField, isEqualTo: whereValue);
+    Query<Map<String, dynamic>> query =
+        _firestore.collection(collectionPath);
+
+    if (whereField != null &&
+        whereValue != null) {
+      query = query.where(
+        whereField,
+        isEqualTo: whereValue,
+      );
     }
+
     if (orderBy != null) {
-      query = query.orderBy(orderBy, descending: descending);
+      query = query.orderBy(
+        orderBy,
+        descending: descending,
+      );
     }
+
     if (limit != null) {
       query = query.limit(limit);
     }
-    
+
     return query.snapshots();
   }
 
-  /// Batch write multiple operations
-  Future<void> batchWrite(List<void Function(WriteBatch batch)> operations) async {
-    final batch = _firestore.batch();
-    for (final operation in operations) {
-      operation(batch);
-    }
-    await batch.commit();
-  }
-
-  /// Run a transaction
-  Future<T> runTransaction<T>(Future<T> Function(Transaction transaction) transaction) async {
+  /// ===============================
+  /// BATCH WRITE
+  /// ===============================
+  Future<void> batchWrite(
+    List<void Function(WriteBatch batch)>
+        operations,
+  ) async {
     try {
-      return await _firestore.runTransaction(transaction);
+      final batch = _firestore.batch();
+
+      for (final operation in operations) {
+        operation(batch);
+      }
+
+      await batch.commit();
     } catch (e) {
       throw mapFirestoreExceptionToFailure(e);
     }
   }
 
-  /// Increment a field value
-  Future<void> incrementField(String collectionPath, String docId, String field, int amount) async {
+  /// ===============================
+  /// TRANSACTION
+  /// ===============================
+  Future<T> runTransaction<T>(
+    Future<T> Function(Transaction transaction)
+        transactionHandler,
+  ) async {
     try {
-      await _firestore.collection(collectionPath).doc(docId).update({
+      return await _firestore.runTransaction(
+        transactionHandler,
+      );
+    } catch (e) {
+      throw mapFirestoreExceptionToFailure(e);
+    }
+  }
+
+  /// ===============================
+  /// INCREMENT FIELD
+  /// ===============================
+  Future<void> incrementField(
+    String collectionPath,
+    String docId,
+    String field,
+    int amount,
+  ) async {
+    try {
+      await _firestore
+          .collection(collectionPath)
+          .doc(docId)
+          .update({
         field: FieldValue.increment(amount),
       });
     } catch (e) {
@@ -181,10 +282,20 @@ class FirestoreService {
     }
   }
 
-  /// Array union (add unique item to array)
-  Future<void> arrayUnion(String collectionPath, String docId, String field, dynamic value) async {
+  /// ===============================
+  /// ARRAY UNION
+  /// ===============================
+  Future<void> arrayUnion(
+    String collectionPath,
+    String docId,
+    String field,
+    dynamic value,
+  ) async {
     try {
-      await _firestore.collection(collectionPath).doc(docId).update({
+      await _firestore
+          .collection(collectionPath)
+          .doc(docId)
+          .update({
         field: FieldValue.arrayUnion([value]),
       });
     } catch (e) {
@@ -192,10 +303,20 @@ class FirestoreService {
     }
   }
 
-  /// Array remove (remove item from array)
-  Future<void> arrayRemove(String collectionPath, String docId, String field, dynamic value) async {
+  /// ===============================
+  /// ARRAY REMOVE
+  /// ===============================
+  Future<void> arrayRemove(
+    String collectionPath,
+    String docId,
+    String field,
+    dynamic value,
+  ) async {
     try {
-      await _firestore.collection(collectionPath).doc(docId).update({
+      await _firestore
+          .collection(collectionPath)
+          .doc(docId)
+          .update({
         field: FieldValue.arrayRemove([value]),
       });
     } catch (e) {
@@ -203,36 +324,57 @@ class FirestoreService {
     }
   }
 
-  // ============================================================
-  // 🔥 NOUVELLES FONCTIONS POUR ADMIN (GESTION DES UTILISATEURS)
-  // ============================================================
-
-  /// Rechercher des utilisateurs par email (commence par)
-  /// Utilisé pour l'autocomplétion dans l'interface admin
-  Future<List<UserModel>> searchUsers(String query) async {
+  /// ===============================
+  /// SEARCH USERS
+  /// ===============================
+  Future<List<UserModel>> searchUsers(
+    String query,
+  ) async {
     try {
+      final lowerQuery =
+          query.trim().toLowerCase();
+
       final snapshot = await _firestore
           .collection(AppConstants.usersCollection)
-          .where('email', isGreaterThanOrEqualTo: query)
-          .where('email', isLessThanOrEqualTo: '$query\uf8ff')
+          .where(
+            'email',
+            isGreaterThanOrEqualTo:
+                lowerQuery,
+          )
+          .where(
+            'email',
+            isLessThanOrEqualTo:
+                '$lowerQuery\uf8ff',
+          )
           .limit(20)
           .get();
+
       return snapshot.docs
-          .map((doc) => UserModel.fromJson(doc.data(), docId: doc.id))
+          .map(
+            (doc) => UserModel.fromJson(
+              doc.data(),
+              docId: doc.id,
+            ),
+          )
           .toList();
     } catch (e) {
       throw mapFirestoreExceptionToFailure(e);
     }
   }
 
-  /// Récupérer le nombre total d'utilisateurs (pour admin)
+  /// ===============================
+  /// USERS COUNT
+  /// ===============================
   Future<int> getUsersCount() async {
     try {
       final snapshot = await _firestore
-          .collection(AppConstants.usersCollection)
+          .collection(
+            AppConstants.usersCollection,
+          )
           .count()
           .get();
-      return snapshot.count;
+
+      return snapshot.count ?? 0;
     } catch (e) {
       throw mapFirestoreExceptionToFailure(e);
     }

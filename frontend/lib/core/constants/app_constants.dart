@@ -1,6 +1,7 @@
 /// Application-wide constants for the NéoSanté platform.
 /// Includes Firebase collections, storage paths, validation rules,
 /// and medical reference ranges.
+//import 'app_constants.dart';
 class AppConstants {
   // Private constructor to prevent instantiation
   AppConstants._();

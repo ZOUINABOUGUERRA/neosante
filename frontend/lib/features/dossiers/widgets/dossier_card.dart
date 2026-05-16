@@ -16,13 +16,17 @@ class DossierCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final severity = dossier['alertSeverity'] ?? 'info';
+    final severity = dossier['alertSeverity']?.toString() ?? 'info';
+
     final borderColor = _getSeverityColor(severity);
 
+    final isPremature =
+        dossier['serviceType'] == AppConstants.servicePremature;
+
     return Card(
-      elevation: 2,
+      elevation: 3,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         side: BorderSide(
           color: borderColor,
           width: 2,
@@ -30,66 +34,105 @@ class DossierCard extends StatelessWidget {
       ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header with status
+              // ================= HEADER =================
+
               Row(
                 children: [
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
                     decoration: BoxDecoration(
-  color: borderColor.withValues(alpha: 0.2),
-  borderRadius: BorderRadius.circular(12),
-),
+                      color: borderColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _getStatusIcon(
+                            dossier['status']?.toString(),
+                          ),
+                          size: 12,
+                          color: borderColor,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _getStatusLabel(
+                            dossier['status']?.toString(),
+                          ),
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: borderColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const Spacer(),
+
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isPremature
+                          ? Colors.purple.withValues(alpha: 0.15)
+                          : AppColors.stableGreen.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
                     child: Text(
-                      _getStatusLabel(dossier['status']),
+                      isPremature ? '👶 Prématuré' : '🍼 À terme',
                       style: TextStyle(
                         fontSize: 10,
-                        color: borderColor,
+                        color: isPremature
+                            ? Colors.purple
+                            : AppColors.stableGreen,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                  const Spacer(),
-                  if (dossier['serviceType'] == AppConstants.servicePremature)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.purple.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Text(
-                        'Prématuré',
-                        style: TextStyle(fontSize: 10, color: Colors.purple),
-                      ),
-                    ),
                 ],
               ),
-              const SizedBox(height: 12),
-              // Newborn name
+
+              const SizedBox(height: 14),
+
+              // ================= INFOS =================
+
               Row(
                 children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: AppColors.medicalBlue.withValues(alpha: .1),
-                    child:const Icon(
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.medicalBlue.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
                       Icons.baby_changing_station,
+                      size: 24,
                       color: AppColors.medicalBlue,
                     ),
                   ),
-                  const SizedBox(width: 12),
+
+                  const SizedBox(width: 14),
+
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          dossier['newbornName'] ?? 'Nouveau-né',
+                          dossier['newbornName']?.toString() ??
+                              'Nouveau-né',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -97,10 +140,13 @@ class DossierCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
+
                         Text(
-                          'Mère: ${dossier['motherName'] ?? 'N/A'}',
-                          style:
-                              const TextStyle(fontSize: 12, color: Colors.grey),
+                          '👩 Mère: ${dossier['motherName']?.toString() ?? 'N/A'}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -109,70 +155,187 @@ class DossierCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              // Medical info
+
+              const SizedBox(height: 14),
+
+              // ================= DONNÉES =================
+
               Row(
                 children: [
                   Expanded(
-                    child: _buildInfoChip(
-                      Icons.calendar_today,
-                      '${dossier['gestationalAge'] ?? '?'} SA',
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 6,
+                        horizontal: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        children: [
+                          const Icon(
+                            Icons.calendar_today,
+                            size: 16,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${dossier['gestationalAge'] ?? '?'} SA',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
+
                   const SizedBox(width: 8),
+
                   Expanded(
-                    child: _buildInfoChip(
-                      Icons.monitor_weight,
-                      '${dossier['birthWeight'] ?? '?'} g',
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 6,
+                        horizontal: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        children: [
+                          const Icon(
+                            Icons.monitor_weight,
+                            size: 16,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${dossier['birthWeight'] ?? '?'} g',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
+
               const SizedBox(height: 8),
+
               Row(
                 children: [
                   Expanded(
-                    child: _buildInfoChip(
-                      Icons.thermostat,
-                      '${dossier['bodyTemperature'] ?? '?'} °C',
-                      color: _getTemperatureColor(dossier['bodyTemperature']),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 6,
+                        horizontal: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _getTemperatureColor(
+                          dossier['bodyTemperature'],
+                        ).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.thermostat,
+                            size: 16,
+                            color: _getTemperatureColor(
+                              dossier['bodyTemperature'],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${dossier['bodyTemperature'] ?? '?'} °C',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: _getTemperatureColor(
+                                dossier['bodyTemperature'],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
+
                   const SizedBox(width: 8),
+
                   Expanded(
-                    child: _buildInfoChip(
-                      Icons.science,
-                      '${dossier['bloodGlucose'] ?? '?'} mg/dL',
-                      color: _getGlucoseColor(dossier['bloodGlucose']),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 6,
+                        horizontal: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _getGlucoseColor(
+                          dossier['bloodGlucose'],
+                        ).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.science,
+                            size: 16,
+                            color: _getGlucoseColor(
+                              dossier['bloodGlucose'],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${dossier['bloodGlucose'] ?? '?'} mg/dL',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: _getGlucoseColor(
+                                dossier['bloodGlucose'],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
+
               const SizedBox(height: 12),
-              // Footer
+
+              // ================= FOOTER =================
+
               Row(
                 children: [
                   Icon(
                     Icons.access_time,
                     size: 14,
-                    color: Colors.grey.shade500,
+                    color: Colors.grey[500],
                   ),
+
                   const SizedBox(width: 4),
+
                   Text(
                     DateFormatter.formatTimeAgo(
-                      (dossier['createdAt'] as Timestamp?)?.toDate() ??
+                      _parseDate(dossier['createdAt']) ??
                           DateTime.now(),
                     ),
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey[500],
+                    ),
                   ),
+
                   const Spacer(),
+
                   if (severity != 'info')
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
+                        horizontal: 12,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
                         color: borderColor,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
                         _getSeverityLabel(severity),
@@ -192,42 +355,73 @@ class DossierCard extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoChip(IconData icon, String label, {Color? color}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        color: (color ?? AppColors.medicalBlue).withValues(alpha: .1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 14, color: color ?? AppColors.medicalBlue),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: color ?? AppColors.darkGray,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
+  // ================= HELPERS =================
+
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+
+    if (value is DateTime) {
+      return value;
+    }
+
+    if (value is String) {
+      return DateTime.tryParse(value);
+    }
+
+    return null;
   }
+
+  // ================= STATUS =================
+
+  IconData _getStatusIcon(String? status) {
+    switch (status) {
+      case 'active':
+        return Icons.fiber_manual_record;
+
+      case 'transferred':
+        return Icons.swap_horiz;
+
+      case 'archived':
+        return Icons.archive;
+
+      default:
+        return Icons.help;
+    }
+  }
+
+  String _getStatusLabel(String? status) {
+    switch (status) {
+      case 'active':
+        return 'Actif';
+
+      case 'transferred':
+        return 'Transféré';
+
+      case 'archived':
+        return 'Archivé';
+
+      default:
+        return 'En cours';
+    }
+  }
+
+  // ================= SEVERITY =================
 
   Color _getSeverityColor(String severity) {
     switch (severity) {
       case 'critical':
         return AppColors.emergencyRed;
+
       case 'warning':
         return AppColors.warningOrange;
+
       case 'medium':
         return AppColors.mediumYellow;
+
       default:
         return AppColors.stableGreen;
     }
@@ -237,45 +431,61 @@ class DossierCard extends StatelessWidget {
     switch (severity) {
       case 'critical':
         return 'URGENCE';
+
       case 'warning':
         return 'SURVEILLANCE';
+
       case 'medium':
         return 'ATTENTION';
+
       default:
         return 'STABLE';
     }
   }
 
-  String _getStatusLabel(String? status) {
-    switch (status) {
-      case 'active':
-        return 'Actif';
-      case 'transferred':
-        return 'Transféré';
-      case 'archived':
-        return 'Archivé';
-      default:
-        return 'En cours';
-    }
-  }
+  // ================= COLORS =================
 
   Color _getGlucoseColor(dynamic value) {
     if (value == null) return Colors.grey;
-    final glucose =
-        value is double ? value : double.tryParse(value.toString()) ?? 0;
-    if (glucose < 40) return AppColors.emergencyRed;
-    if (glucose < 45) return AppColors.warningOrange;
-    if (glucose > 150) return AppColors.mediumYellow;
+
+    final glucose = value is double
+        ? value
+        : double.tryParse(value.toString()) ?? 0;
+
+    if (glucose < 40) {
+      return AppColors.emergencyRed;
+    }
+
+    if (glucose < 45) {
+      return AppColors.warningOrange;
+    }
+
+    if (glucose > 150) {
+      return AppColors.mediumYellow;
+    }
+
     return AppColors.stableGreen;
   }
 
   Color _getTemperatureColor(dynamic value) {
     if (value == null) return Colors.grey;
-    final temp =
-        value is double ? value : double.tryParse(value.toString()) ?? 0;
-    if (temp < 32) return AppColors.emergencyRed;
-    if (temp < 36) return AppColors.warningOrange;
-    if (temp > 37.5) return AppColors.emergencyRed;
+
+    final temp = value is double
+        ? value
+        : double.tryParse(value.toString()) ?? 0;
+
+    if (temp < 32) {
+      return AppColors.emergencyRed;
+    }
+
+    if (temp < 36) {
+      return AppColors.warningOrange;
+    }
+
+    if (temp > 37.5) {
+      return AppColors.emergencyRed;
+    }
+
     return AppColors.stableGreen;
   }
 }

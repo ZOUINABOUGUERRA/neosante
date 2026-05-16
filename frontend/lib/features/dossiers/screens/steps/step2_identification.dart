@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:intl/intl.dart';
+import 'dart:io';
 import '../../../../theme/colors.dart';
 import '../../../../core/constants/app_constants.dart';
-//import '../../../../shared/extensions/string_ext.dart';
-import 'dart:io';
-/// Step 2: Newborn identification and maternal information
+
 class Step2Identification extends StatefulWidget {
   final Function(Map<String, dynamic>) onChanged;
   final Map<String, dynamic> initialData;
@@ -75,8 +74,10 @@ class _Step2IdentificationState extends State<Step2Identification> {
       final dateTime = widget.initialData['birthDateTime'];
       if (dateTime is DateTime) {
         _birthDateTime = dateTime;
-        _birthDateTimeController.text =
-            DateFormat('dd/MM/yyyy HH:mm', 'fr_FR').format(dateTime);
+        _birthDateTimeController.text = DateFormat(
+          'dd/MM/yyyy HH:mm',
+          'fr_FR',
+        ).format(dateTime);
       }
     }
   }
@@ -99,21 +100,24 @@ class _Step2IdentificationState extends State<Step2Identification> {
   }
 
   Future<void> _selectBirthDateTime() async {
+    final DateTime now = DateTime.now();
+    final DateTime initialDate = _birthDateTime ?? now;
+
     final DateTime? pickedDate = await showDatePicker(
       context: context,
-      initialDate: _birthDateTime ?? DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      initialDate: initialDate,
+      firstDate: DateTime(now.year - 1, now.month, now.day),
+      lastDate: now,
       locale: const Locale('fr', 'FR'),
     );
 
-    if (pickedDate != null) {
+    if (pickedDate != null && mounted) {
       final TimeOfDay? pickedTime = await showTimePicker(
         context: context,
-        initialTime: TimeOfDay.fromDateTime(_birthDateTime ?? DateTime.now()),
+        initialTime: TimeOfDay.fromDateTime(_birthDateTime ?? now),
       );
 
-      if (pickedTime != null) {
+      if (pickedTime != null && mounted) {
         setState(() {
           _birthDateTime = DateTime(
             pickedDate.year,
@@ -122,49 +126,48 @@ class _Step2IdentificationState extends State<Step2Identification> {
             pickedTime.hour,
             pickedTime.minute,
           );
-          _birthDateTimeController.text =
-              DateFormat('dd/MM/yyyy HH:mm', 'fr_FR').format(_birthDateTime!);
+          _birthDateTimeController.text = DateFormat(
+            'dd/MM/yyyy HH:mm',
+            'fr_FR',
+          ).format(_birthDateTime!);
         });
         _notifyParent();
       }
     }
   }
 
- Future<void> _pickImage() async {
-  final picker = ImagePicker();
-  final pickedFile = await picker.pickImage(
-    source: ImageSource.gallery,
-    imageQuality: 80,
-  );
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
 
-  if (pickedFile != null) {
-    setState(() => _isUploading = true);
-    try {
-      // ✅ تحويل XFile إلى File
-      final file = File(pickedFile.path);
-      
-      final ref = FirebaseStorage.instance.ref().child(
-          'dossiers/${DateTime.now().millisecondsSinceEpoch}_${pickedFile.name}');
-      
-      // ✅ رفع الملف
-      await ref.putFile(file);
-      
-      final downloadUrl = await ref.getDownloadURL();
-      setState(() {
-        _imageUrls.add(downloadUrl);
-      });
-      _notifyParent();
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Erreur lors du téléchargement de l\'image'),
-        ),
-      );
-    } finally {
-      setState(() => _isUploading = false);
+    if (pickedFile != null) {
+      setState(() => _isUploading = true);
+      try {
+        final file = File(pickedFile.path);
+        final ref = FirebaseStorage.instance.ref().child(
+          'dossiers/${DateTime.now().millisecondsSinceEpoch}_${pickedFile.name}',
+        );
+        await ref.putFile(file);
+        final downloadUrl = await ref.getDownloadURL();
+        setState(() {
+          _imageUrls.add(downloadUrl);
+        });
+        _notifyParent();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Erreur lors du téléchargement')),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isUploading = false);
+      }
     }
   }
-}
+
   void _removeImage(int index) {
     setState(() {
       _imageUrls.removeAt(index);
@@ -175,218 +178,266 @@ class _Step2IdentificationState extends State<Step2Identification> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       child: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Newborn Information Section
-            _buildSectionHeader('👶 Nouveau-né', Icons.baby_changing_station),
-            const SizedBox(height: 16),
-            _buildTextField(
-              controller: _newbornNameController,
-              label: 'Nom du nouveau-né',
-              icon: Icons.person,
-              validator: (value) =>
-                  value?.isEmpty == true ? 'Champ requis' : null,
-              onChanged: (_) => _notifyParent(),
-            ),
-            const SizedBox(height: 16),
-            _buildDateField(
-              controller: _birthDateTimeController,
-              label: 'Date et heure de naissance',
-              icon: Icons.calendar_today,
-              onTap: _selectBirthDateTime,
-            ),
-            const SizedBox(height: 16),
-
-            // Maternal Information Section
-            _buildSectionHeader('👩 Mère', Icons.woman),
-            const SizedBox(height: 16),
-            _buildTextField(
-              controller: _motherNameController,
-              label: 'Nom de la mère',
-              icon: Icons.female,
-              onChanged: (_) => _notifyParent(),
-            ),
-            const SizedBox(height: 16),
-            Row(
+            _buildSectionCard(
+              title: '👶 Nouveau-né',
+              icon: Icons.baby_changing_station,
               children: [
-                Expanded(
-                  child: _buildTextField(
-                    controller: _gestationalAgeController,
-                    label: 'Âge gestationnel (SA)',
-                    icon: Icons.timer,
-                    keyboardType: TextInputType.number,
-                    onChanged: (_) => _notifyParent(),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildTextField(
-                    controller: _previousChildrenController,
-                    label: 'Parité',
-                    icon: Icons.people,
-                    keyboardType: TextInputType.number,
-                    onChanged: (_) => _notifyParent(),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildTextField(
-              controller: _atcdController,
-              label: 'ATCD (Antécédents)',
-              icon: Icons.history,
-              maxLines: 2,
-              onChanged: (_) => _notifyParent(),
-            ),
-            const SizedBox(height: 16),
-
-            // Delivery Information Section
-            _buildSectionHeader('🤱 Accouchement', Icons.local_hospital),
-            const SizedBox(height: 16),
-            _buildDropdown(
-              label: 'Mode d\'accouchement',
-              value: _deliveryMethod,
-              items: const [
-                DropdownMenuItem(
-                  value: AppConstants.deliveryVaginal,
-                  child: Text('Voie basse'),
-                ),
-                DropdownMenuItem(
-                  value: AppConstants.deliveryCesarean,
-                  child: Text('Césarienne'),
-                ),
-                DropdownMenuItem(
-                  value: 'autre',
-                  child: Text('Autre'),
-                ),
-              ],
-              onChanged: (value) {
-                setState(() => _deliveryMethod = value!);
-                _notifyParent();
-              },
-            ),
-            if (_deliveryMethod == 'autre')
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: _buildTextField(
-                  controller: _deliveryOtherController,
-                  label: 'Précisez',
-                  icon: Icons.edit,
+                _buildTextField(
+                  controller: _newbornNameController,
+                  label: 'Nom du nouveau-né',
+                  icon: Icons.person,
+                  required: true,
                   onChanged: (_) => _notifyParent(),
                 ),
-              ),
-            const SizedBox(height: 16),
-            _buildDropdown(
-              label: 'Couleur du liquide amniotique',
-              value: _amnioticColor,
-              items: const [
-                DropdownMenuItem(value: 'clair', child: Text('Clair')),
-                DropdownMenuItem(value: 'teinté', child: Text('Teinté')),
-                DropdownMenuItem(value: 'méconial', child: Text('Méconial')),
-                DropdownMenuItem(value: 'sanglant', child: Text('Sanglant')),
+                const SizedBox(height: 16),
+                _buildDateField(
+                  controller: _birthDateTimeController,
+                  label: 'Date et heure de naissance',
+                  icon: Icons.calendar_today,
+                  onTap: _selectBirthDateTime,
+                ),
               ],
-              onChanged: (value) {
-                setState(() => _amnioticColor = value!);
-                _notifyParent();
-              },
             ),
-            const SizedBox(height: 16),
-            _buildTextField(
-              controller: _observationsController,
-              label: 'Observations sage-femme',
-              icon: Icons.note,
-              maxLines: 3,
-              onChanged: (_) => _notifyParent(),
+            const SizedBox(height: 20),
+            _buildSectionCard(
+              title: '👩 Mère',
+              icon: Icons.woman,
+              children: [
+                _buildTextField(
+                  controller: _motherNameController,
+                  label: 'Nom de la mère',
+                  icon: Icons.female,
+                  onChanged: (_) => _notifyParent(),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _gestationalAgeController,
+                        label: 'Âge gestationnel (SA)',
+                        icon: Icons.timer,
+                        keyboardType: TextInputType.number,
+                        onChanged: (_) => _notifyParent(),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _previousChildrenController,
+                        label: 'Parité',
+                        icon: Icons.people,
+                        keyboardType: TextInputType.number,
+                        onChanged: (_) => _notifyParent(),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _buildTextField(
+                  controller: _atcdController,
+                  label: 'ATCD (Antécédents)',
+                  icon: Icons.history,
+                  maxLines: 2,
+                  onChanged: (_) => _notifyParent(),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-
-            // Images Section
-            _buildSectionHeader('📷 Documents et images', Icons.image),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: _isUploading ? null : _pickImage,
-              icon: _isUploading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.add_photo_alternate),
-              label: const Text('Ajouter une image'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.lightBlue,
-              ),
-            ),
-            const SizedBox(height: 16),
-            if (_imageUrls.isNotEmpty)
-              SizedBox(
-                height: 120,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _imageUrls.length,
-                  itemBuilder: (context, index) {
-                    return Stack(
-                      children: [
-                        Container(
-                          margin: const EdgeInsets.only(right: 12),
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            image: DecorationImage(
-                              image: NetworkImage(_imageUrls[index]),
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          top: 0,
-                          right: 8,
-                          child: CircleAvatar(
-                            radius: 14,
-                            backgroundColor: Colors.red,
-                            child: IconButton(
-                              icon: const Icon(Icons.close, size: 16),
-                              color: Colors.white,
-                              onPressed: () => _removeImage(index),
-                              padding: EdgeInsets.zero,
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
+            const SizedBox(height: 20),
+            _buildSectionCard(
+              title: '🤱 Accouchement',
+              icon: Icons.local_hospital,
+              children: [
+                _buildDropdown(
+                  label: 'Mode d\'accouchement',
+                  value: _deliveryMethod,
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'voie basse',
+                      child: Text(' Voie basse'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'césarienne',
+                      child: Text(' Césarienne'),
+                    ),
+                    DropdownMenuItem(value: 'autre', child: Text('📝 Autre')),
+                  ],
+                  onChanged: (value) {
+                    setState(() => _deliveryMethod = value!);
+                    _notifyParent();
                   },
                 ),
-              ),
+                if (_deliveryMethod == 'autre')
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: _buildTextField(
+                      controller: _deliveryOtherController,
+                      label: 'Précisez',
+                      icon: Icons.edit,
+                      onChanged: (_) => _notifyParent(),
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                _buildDropdown(
+                  label: 'Couleur du liquide amniotique',
+                  value: _amnioticColor,
+                  items: const [
+                    DropdownMenuItem(value: 'clair', child: Text('💧 Clair')),
+                    DropdownMenuItem(value: 'teinté', child: Text('🟤 Teinté')),
+                    DropdownMenuItem(
+                      value: 'méconial',
+                      child: Text('🟢 Méconial'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'sanglant',
+                      child: Text('🔴 Sanglant'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    setState(() => _amnioticColor = value!);
+                    _notifyParent();
+                  },
+                ),
+                const SizedBox(height: 16),
+                _buildTextField(
+                  controller: _observationsController,
+                  label: 'Observations',
+                  icon: Icons.note,
+                  maxLines: 3,
+                  hint: 'Notes cliniques de la sage-femme...',
+                  onChanged: (_) => _notifyParent(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _buildSectionCard(
+              title: '📷 Documents et images',
+              icon: Icons.image,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _isUploading ? null : _pickImage,
+                  icon: _isUploading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.add_photo_alternate),
+                  label: const Text('📸 Ajouter une image'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.lightBlue,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                if (_imageUrls.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: 100,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _imageUrls.length,
+                      itemBuilder: (context, index) {
+                        return Stack(
+                          children: [
+                            Container(
+                              margin: const EdgeInsets.only(right: 12),
+                              width: 90,
+                              height: 90,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                image: DecorationImage(
+                                  image: NetworkImage(_imageUrls[index]),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              top: 4,
+                              right: 4,
+                              child: CircleAvatar(
+                                radius: 14,
+                                backgroundColor: Colors.red,
+                                child: IconButton(
+                                  icon: const Icon(Icons.close, size: 14),
+                                  color: Colors.white,
+                                  onPressed: () => _removeImage(index),
+                                  padding: EdgeInsets.zero,
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSectionHeader(String title, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, color: AppColors.medicalBlue, size: 24),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+  Widget _buildSectionCard({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.medicalBlue.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: AppColors.medicalBlue, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            ...children,
+          ],
         ),
-        Container(
-          margin: const EdgeInsets.only(left: 12),
-          height: 2,
-          width: 40,
-          color: AppColors.medicalBlue,
-        ),
-      ],
+      ),
     );
   }
 
@@ -396,46 +447,75 @@ class _Step2IdentificationState extends State<Step2Identification> {
     IconData? icon,
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
-    String? Function(String?)? validator,
+    bool required = false,
+    String? hint,
     Function(String)? onChanged,
   }) {
     return TextFormField(
       controller: controller,
       decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: icon != null ? Icon(icon) : null,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        labelText: required ? '$label *' : label,
+        hintText: hint,
+        prefixIcon: icon != null
+            ? Icon(icon, color: AppColors.medicalBlue)
+            : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.medicalBlue, width: 2),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
       keyboardType: keyboardType,
       maxLines: maxLines,
-      validator: validator,
+      validator: required
+          ? (value) => value?.isEmpty == true ? 'Champ requis' : null
+          : null,
       onChanged: onChanged,
     );
   }
 
+  // ✅ دالة حقل التاريخ المصححة
   Widget _buildDateField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
     required VoidCallback onTap,
   }) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      child: IgnorePointer(
-        child: TextField(
+      child: AbsorbPointer(
+        child: TextFormField(
           controller: controller,
           decoration: InputDecoration(
             labelText: label,
-            prefixIcon: Icon(icon),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            prefixIcon: Icon(icon, color: AppColors.medicalBlue),
+            suffixIcon: const Icon(
+              Icons.calendar_today,
+              size: 20,
+              color: AppColors.medicalBlue,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
           ),
         ),
       ),
     );
   }
 
+  // ✅ دالة القائمة المنسدلة المصححة
   Widget _buildDropdown({
     required String label,
     required String value,
@@ -446,9 +526,14 @@ class _Step2IdentificationState extends State<Step2Identification> {
       initialValue: value,
       decoration: InputDecoration(
         labelText: label,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
       ),
       items: items,
       onChanged: onChanged,

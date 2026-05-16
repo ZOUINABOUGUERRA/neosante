@@ -1,14 +1,267 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:file_picker/file_picker.dart';
-import '../../../theme/colors.dart';
-import '../../../shared/extensions/context_ext.dart';
-import '../providers/backup_provider.dart';
+import '../../../services/backup_service.dart';
+import '../../../services/auth_service.dart';
 
+/// Backup state class
+class BackupState {
+  final List<Map<String, dynamic>> backups;
+  final bool isLoading;
+  final String? error;
+  final double exportProgress;
+  final String? lastBackupDate;
+  final int totalBackups;
+  final double totalSizeMB;
+
+  const BackupState({
+    this.backups = const [],
+    this.isLoading = false,
+    this.error,
+    this.exportProgress = 0,
+    this.lastBackupDate,
+    this.totalBackups = 0,
+    this.totalSizeMB = 0,
+  });
+
+  BackupState copyWith({
+    List<Map<String, dynamic>>? backups,
+    bool? isLoading,
+    String? error,
+    double? exportProgress,
+    String? lastBackupDate,
+    int? totalBackups,
+    double? totalSizeMB,
+  }) {
+    return BackupState(
+      backups: backups ?? this.backups,
+      isLoading: isLoading ?? this.isLoading,
+      error: error ?? this.error,
+      exportProgress: exportProgress ?? this.exportProgress,
+      lastBackupDate: lastBackupDate ?? this.lastBackupDate,
+      totalBackups: totalBackups ?? this.totalBackups,
+      totalSizeMB: totalSizeMB ?? this.totalSizeMB,
+    );
+  }
+}
+
+/// Backup provider
+final backupProvider = StateNotifierProvider<BackupNotifier, BackupState>((
+  ref,
+) {
+  return BackupNotifier();
+});
+
+/// Backup notifier for managing backup operations
+class BackupNotifier extends StateNotifier<BackupState> {
+  final BackupService _backupService = BackupService();
+  final AuthService _authService = AuthService();
+
+  BackupNotifier() : super(const BackupState()) {
+    loadBackupHistory();
+  }
+
+  /// ✅ دالة مساعدة لقراءة التاريخ من Firestore
+  DateTime? _parseDateFromFirestore(dynamic value) {
+    if (value == null) return null;
+
+    // إذا كان من النوع Timestamp
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+
+    // إذا كان من النوع String (ISO format)
+    if (value is String) {
+      try {
+        return DateTime.parse(value);
+      } catch (e) {
+        debugPrint('Error parsing date: $e');
+        return null;
+      }
+    }
+
+    return null;
+  }
+
+  /// Load backup history from Firestore
+  Future<void> loadBackupHistory() async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final backups = await _backupService.getBackupHistory();
+
+      int totalBackups = backups.length;
+      double totalSizeMB = backups.fold(
+        0.0,
+        (total, b) => total + (b['fileSizeMB'] as double? ?? 0),
+      );
+
+      // ✅ قراءة التاريخ بشكل آمن
+      String? lastBackupDate;
+      if (backups.isNotEmpty) {
+        final createdAt = backups.first['createdAt'];
+        final date = _parseDateFromFirestore(createdAt);
+        lastBackupDate = date?.toIso8601String();
+      }
+
+      state = state.copyWith(
+        backups: backups,
+        isLoading: false,
+        totalBackups: totalBackups,
+        totalSizeMB: totalSizeMB,
+        lastBackupDate: lastBackupDate,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error loading backup history: $e');
+      }
+      state = state.copyWith(
+        isLoading: false,
+        error: '❌ Erreur lors du chargement: ${e.toString()}',
+      );
+    }
+  }
+
+  /// Export all data to JSON file
+  Future<File?> exportAllData() async {
+    state = state.copyWith(isLoading: true, error: null, exportProgress: 0.1);
+    try {
+      final file = await _backupService.exportAllData();
+      state = state.copyWith(exportProgress: 0.8);
+
+      await Future.delayed(const Duration(milliseconds: 200));
+      state = state.copyWith(isLoading: false, exportProgress: 0);
+      return file;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: '❌ Erreur d\'exportation: ${e.toString()}',
+        exportProgress: 0,
+      );
+      return null;
+    }
+  }
+
+  /// Import data from JSON file
+  Future<Map<String, int>?> importData(File file) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final stats = await _backupService.importData(file);
+      await loadBackupHistory();
+      state = state.copyWith(isLoading: false);
+      return stats;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: '❌ Erreur d\'importation: ${e.toString()}',
+      );
+      return null;
+    }
+  }
+
+  /// Upload backup to cloud
+  Future<String?> uploadBackupToCloud(File file) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final currentUser = _authService.currentFirebaseUser;
+      if (currentUser == null) {
+        throw Exception('🔐 Veuillez vous connecter');
+      }
+
+      final url = await _backupService.uploadBackupToCloud(
+        file,
+        currentUser.uid,
+      );
+      await loadBackupHistory();
+      state = state.copyWith(isLoading: false);
+      return url;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: '☁️ Erreur d\'upload: ${e.toString()}',
+      );
+      return null;
+    }
+  }
+
+  /// Restore from cloud backup
+  Future<Map<String, int>?> restoreFromCloud(String backupId) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final stats = await _backupService.restoreFromCloud(backupId);
+      await loadBackupHistory();
+      state = state.copyWith(isLoading: false);
+      return stats;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: '❌ Erreur de restauration: ${e.toString()}',
+      );
+      return null;
+    }
+  }
+
+  /// Delete old backups
+  Future<int> deleteOldBackups() async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      await _backupService.deleteOldBackups();
+      await loadBackupHistory();
+      state = state.copyWith(isLoading: false);
+      return state.totalBackups;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: '🗑️ Erreur de suppression: ${e.toString()}',
+      );
+      return 0;
+    }
+  }
+
+  /// Export dossiers only (partial backup)
+  Future<File?> exportDossiersOnly() async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final file = await _backupService.exportDossiersOnly();
+      state = state.copyWith(isLoading: false);
+      return file;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: '📁 Erreur d\'exportation: ${e.toString()}',
+      );
+      return null;
+    }
+  }
+
+  /// Clear error
+  void clearError() {
+    state = state.copyWith(error: null);
+  }
+
+  /// Format file size
+  String formatFileSize(double sizeMB) {
+    if (sizeMB < 0.001) return '0 KB';
+    if (sizeMB < 1) {
+      return '${(sizeMB * 1024).toStringAsFixed(1)} KB';
+    }
+    return '${sizeMB.toStringAsFixed(2)} MB';
+  }
+
+  /// ✅ Format date - يدعم كلاً من String و Timestamp
+  String formatDate(String? dateString) {
+    if (dateString == null) return '📅 Aucune';
+    try {
+      final date = DateTime.parse(dateString);
+      return '${date.day}/${date.month}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return dateString;
+    }
+  }
+}
+
+/// Backup Screen Widget
 class BackupScreen extends ConsumerStatefulWidget {
   const BackupScreen({super.key});
 
@@ -17,659 +270,206 @@ class BackupScreen extends ConsumerStatefulWidget {
 }
 
 class _BackupScreenState extends ConsumerState<BackupScreen> {
-  bool _isExporting = false;
-  bool _isImporting = false;
-  bool _isUploading = false;
-  bool _isRestoring = false;
-
-  @override
-  void initState() {
-    super.initState();
-    // Charger l'historique des sauvegardes au démarrage
-    Future.microtask(() {
-      ref.read(backupProvider.notifier).loadBackupHistory();
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final backupState = ref.watch(backupProvider);
     final backupNotifier = ref.read(backupProvider.notifier);
-    final isDesktop = MediaQuery.of(context).size.width > 800;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sauvegarde et Restauration'),
+        title: const Text('💾 Sauvegarde'),
         backgroundColor: Colors.transparent,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => backupNotifier.loadBackupHistory(),
-            tooltip: 'Rafraîchir',
-          ),
-        ],
+        elevation: 0,
       ),
-      body: isDesktop
-          ? _buildDesktopLayout(backupState, backupNotifier)
-          : _buildMobileLayout(backupState, backupNotifier),
-    );
-  }
-
-  Widget _buildDesktopLayout(BackupState state, BackupNotifier notifier) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Panneau de gauche - Actions
-        Expanded(
-          flex: 1,
-          child: _buildActionsPanel(state, notifier),
-        ),
-        // Panneau de droite - Historique
-        Expanded(
-          flex: 2,
-          child: _buildHistoryPanel(state, notifier),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMobileLayout(BackupState state, BackupNotifier notifier) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          _buildActionsPanel(state, notifier),
-          const SizedBox(height: 24),
-          _buildHistoryPanel(state, notifier),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionsPanel(BackupState state, BackupNotifier notifier) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-           const Row(
-              children: [
-                Icon(Icons.backup, color: AppColors.medicalBlue, size: 28),
-                SizedBox(width: 12),
-                Text(
-                  'Opérations de sauvegarde',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // Export All Data
-            _buildActionButton(
-              icon: Icons.download,
-              title: 'Exporter toutes les données',
-              subtitle:
-                  'Exporter tous les dossiers et données vers un fichier JSON',
-              color: AppColors.medicalBlue,
-              onPressed: _isExporting ? null : () => _exportAllData(notifier),
-              isLoading: _isExporting,
-            ),
-
-            const SizedBox(height: 16),
-
-            // Export Dossiers Only
-            _buildActionButton(
-              icon: Icons.folder,
-              title: 'Exporter les dossiers seulement',
-              subtitle: 'Exporter les dossiers médicaux uniquement',
-              color: AppColors.stableGreen,
-              onPressed:
-                  _isExporting ? null : () => _exportDossiersOnly(notifier),
-              isLoading: _isExporting,
-            ),
-
-            const SizedBox(height: 16),
-
-            // Import Data
-            _buildActionButton(
-              icon: Icons.upload,
-              title: 'Importer des données',
-              subtitle: 'Importer des données depuis un fichier JSON',
-              color: AppColors.warningOrange,
-              onPressed: _isImporting ? null : () => _importData(notifier),
-              isLoading: _isImporting,
-            ),
-
-            const Divider(height: 32),
-
-            // Cloud Backup Section
-            const Text(
-              'Sauvegarde Cloud',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-
-            // Upload to Cloud
-            _buildActionButton(
-              icon: Icons.cloud_upload,
-              title: 'Upload vers le Cloud',
-              subtitle: 'Uploader une sauvegarde vers Firebase Storage',
-              color: const Color(0xFF6C63FF),
-              onPressed: _isUploading ? null : () => _uploadToCloud(notifier),
-              isLoading: _isUploading,
-            ),
-
-            const SizedBox(height: 16),
-
-            // Delete Old Backups
-            _buildActionButton(
-              icon: Icons.delete_sweep,
-              title: 'Supprimer les anciennes sauvegardes',
-              subtitle: 'Supprimer les sauvegardes de plus de 90 jours',
-              color: AppColors.emergencyRed,
-              onPressed: () => _deleteOldBackups(notifier),
-              isLoading: false,
-            ),
-
-            const SizedBox(height: 20),
-
-            // Info Card
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child:const Row(
-                children: [
-                  Icon(Icons.info_outline, color: AppColors.medicalBlue),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'La sauvegarde conserve toutes les données incluant les dossiers médicaux, utilisateurs et alertes',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionButton({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color color,
-    required VoidCallback? onPressed,
-    required bool isLoading,
-  }) {
-    return InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: isLoading
-                  ? SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: color,
-                      ),
-                    )
-                  : Icon(icon, color: color, size: 24),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: color,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right, color: color),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHistoryPanel(BackupState state, BackupNotifier notifier) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-               const Icon(Icons.history, color: AppColors.medicalBlue, size: 28),
-                const SizedBox(width: 12),
-                const Text(
-                  'Historique des sauvegardes',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const Spacer(),
-                if (state.totalBackups > 0)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppColors.medicalBlue.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '${state.totalBackups} sauvegarde(s)',
-                      style:const TextStyle(color: AppColors.medicalBlue),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Stats row
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      children: [
-                        Text(
-                          state.totalBackups.toString(),
-                          style: const TextStyle(
-                              fontSize: 24, fontWeight: FontWeight.bold),
-                        ),
-                        const Text('Nombre de sauvegardes',
-                            style: TextStyle(fontSize: 12)),
-                      ],
-                    ),
-                  ),
-                  Container(height: 40, width: 1, color: Colors.grey.shade300),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        Text(
-                          notifier.formatFileSize(state.totalSizeMB),
-                          style: const TextStyle(
-                              fontSize: 24, fontWeight: FontWeight.bold),
-                        ),
-                        const Text('Taille totale',
-                            style: TextStyle(fontSize: 12)),
-                      ],
-                    ),
-                  ),
-                  Container(height: 40, width: 1, color: Colors.grey.shade300),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        Text(
-                          notifier.formatDate(state.lastBackupDate),
-                          style: const TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.bold),
-                        ),
-                        const Text('Dernière sauvegarde',
-                            style: TextStyle(fontSize: 12)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Backups list
-            if (state.isLoading)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(32),
-                  child: CircularProgressIndicator(),
-                ),
-              )
-            else if (state.backups.isEmpty)
-              Center(
+            // Statistics Card
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.cloud_off, size: 64, color: Colors.grey[400]),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Aucune sauvegarde existante',
-                      style: TextStyle(color: Colors.grey[600]),
+                    const Text(
+                      '📊 Statistiques',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Créez une nouvelle sauvegarde en utilisant les boutons ci-dessus',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildStatItem('Total', '${backupState.totalBackups}'),
+                        _buildStatItem(
+                          'Taille',
+                          backupNotifier.formatFileSize(
+                            backupState.totalSizeMB,
+                          ),
+                        ),
+                        _buildStatItem(
+                          'Dernière',
+                          backupNotifier.formatDate(backupState.lastBackupDate),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              )
-            else
-              Expanded(
-                child: ListView.builder(
-                  itemCount: state.backups.length,
-                  itemBuilder: (context, index) {
-                    final backup = state.backups[index];
-                    return _buildBackupCard(backup, notifier);
-                  },
-                ),
               ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBackupCard(
-      Map<String, dynamic> backup, BackupNotifier notifier) {
-    final fileName = backup['fileName'] ?? 'unknown.json';
-    final fileSizeMB = backup['fileSizeMB'] as double? ?? 0;
-    final createdAt = backup['createdAt'] as Timestamp?;
-    final isCloud = backup['downloadUrl'] != null;
-    final isManual = backup['backupType'] == 'manual';
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor:
-              isCloud ? AppColors.medicalBlue : AppColors.stableGreen,
-          child: Icon(
-            isCloud ? Icons.cloud : Icons.storage,
-            color: Colors.white,
-            size: 20,
-          ),
-        ),
-        title: Text(
-          fileName.length > 40
-              ? '...${fileName.substring(fileName.length - 37)}'
-              : fileName,
-          style: const TextStyle(fontWeight: FontWeight.w500),
-        ),
-        subtitle: Row(
-          children: [
-            Text(notifier.formatFileSize(fileSizeMB)),
-            const SizedBox(width: 12),
-            if (isManual)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.purple.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  'Manuelle',
-                  style: TextStyle(fontSize: 10, color: Colors.purple),
-                ),
-              ),
-            const Spacer(),
-            Text(
-              notifier.formatDate(createdAt?.toDate().toString()),
-              style: const TextStyle(fontSize: 11, color: Colors.grey),
             ),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (isCloud)
-              IconButton(
-                icon: const Icon(Icons.download, size: 20),
-                onPressed: _isRestoring
-                    ? null
-                    : () => _restoreFromCloud(backup['id'], notifier),
-                tooltip: 'Restaurer',
-              ),
-            IconButton(
-              icon: const Icon(Icons.share, size: 20),
-              onPressed: () => _shareBackupInfo(backup),
-              tooltip: 'Partager',
+            const SizedBox(height: 24),
+
+            // Export Section
+            const Text(
+              '📤 Exportation',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _exportAllData(BackupNotifier notifier) async {
-    setState(() => _isExporting = true);
-    try {
-      final file = await notifier.exportAllData();
-      if (file != null && mounted) {
-        // Save to downloads
-        final directory = await getDownloadsDirectory();
-        final savedFile = await file.copy(
-            '${directory?.path}/neosante_backup_${DateTime.now().millisecondsSinceEpoch}.json');
-
-        await Share.shareXFiles(
-          [XFile(savedFile.path)],
-          text: 'Sauvegarde complète du système NéoSanté',
-        );
-
-        context.showSuccessSnackBar('Exportation des données réussie');
-      }
-    } catch (e) {
-      context.showErrorSnackBar('Erreur lors de l\'exportation: $e');
-    } finally {
-      if (mounted) setState(() => _isExporting = false);
-    }
-  }
-
-  Future<void> _exportDossiersOnly(BackupNotifier notifier) async {
-    setState(() => _isExporting = true);
-    try {
-      final file = await notifier.exportDossiersOnly();
-      if (file != null && mounted) {
-        final directory = await getDownloadsDirectory();
-        final savedFile = await file.copy(
-            '${directory?.path}/neosante_dossiers_${DateTime.now().millisecondsSinceEpoch}.json');
-
-        await Share.shareXFiles(
-          [XFile(savedFile.path)],
-          text: 'Sauvegarde des dossiers médicaux NéoSanté',
-        );
-
-        context.showSuccessSnackBar('Exportation des dossiers réussie');
-      }
-    } catch (e) {
-      context.showErrorSnackBar('Erreur lors de l\'exportation: $e');
-    } finally {
-      if (mounted) setState(() => _isExporting = false);
-    }
-  }
-
-  Future<void> _importData(BackupNotifier notifier) async {
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['json'],
-      );
-
-      if (result == null || result.files.isEmpty) return;
-
-      setState(() => _isImporting = true);
-
-      final file = File(result.files.first.path!);
-
-      final confirmed = await context.showConfirmationDialog(
-        title: 'Importer les données',
-        message:
-            '⚠️ Attention: L\'importation remplacera les données actuelles. Êtes-vous sûr?',
-        confirmText: 'Importer',
-        confirmColor: AppColors.warningOrange,
-      );
-
-      if (confirmed != true) {
-        setState(() => _isImporting = false);
-        return;
-      }
-
-      final stats = await notifier.importData(file);
-
-      if (stats != null && mounted) {
-        String message = 'Importation réussie:\n';
-        stats.forEach((collection, count) {
-          message += '- $collection: $count fichier(s)\n';
-        });
-        context.showSuccessSnackBar(message);
-      }
-    } catch (e) {
-      context.showErrorSnackBar('Erreur lors de l\'importation: $e');
-    } finally {
-      if (mounted) setState(() => _isImporting = false);
-    }
-  }
-
-  Future<void> _uploadToCloud(BackupNotifier notifier) async {
-    setState(() => _isUploading = true);
-    try {
-      // First export data
-      final file = await notifier.exportAllData();
-      if (file == null) throw Exception('Échec de l\'exportation des données');
-
-      // Then upload to cloud
-      final url = await notifier.uploadBackupToCloud(file);
-
-      if (url != null && mounted) {
-        context.showSuccessSnackBar('Sauvegarde uploadée vers le cloud');
-
-        // Show download link
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Upload réussi'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
+            const SizedBox(height: 16),
+            Row(
               children: [
-                const Text('Lien de téléchargement:'),
-                const SizedBox(height: 12),
-                SelectableText(url, style: const TextStyle(fontSize: 10)),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: backupState.isLoading
+                        ? null
+                        : () async {
+                            final messenger = ScaffoldMessenger.of(context);
+                            final file = await backupNotifier.exportAllData();
+                            if (!mounted || file == null) return;
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text('✅ Exporté: ${file.path}'),
+                              ),
+                            );
+                          },
+                    icon: const Icon(Icons.download),
+                    label: const Text('Exporter Tout'),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: backupState.isLoading
+                        ? null
+                        : () async {
+                            final messenger = ScaffoldMessenger.of(context);
+                            final file = await backupNotifier
+                                .exportDossiersOnly();
+                            if (!mounted || file == null) return;
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  '✅ Dossiers exportés: ${file.path}',
+                                ),
+                              ),
+                            );
+                          },
+                    icon: const Icon(Icons.folder),
+                    label: const Text('Dossiers Seulement'),
+                  ),
+                ),
               ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Fermer'),
-              ),
-              ElevatedButton.icon(
-                onPressed: () => Share.share(url),
-                icon: const Icon(Icons.share),
-                label: const Text('Partager'),
-              ),
+
+            // Progress Indicator
+            if (backupState.isLoading) ...[
+              const SizedBox(height: 16),
+              LinearProgressIndicator(value: backupState.exportProgress),
+              const SizedBox(height: 8),
+              Text('${(backupState.exportProgress * 100).toInt()}%'),
             ],
-          ),
-        );
-      }
-    } catch (e) {
-      context.showErrorSnackBar('Erreur lors de l\'upload: $e');
-    } finally {
-      if (mounted) setState(() => _isUploading = false);
-    }
-  }
 
-  Future<void> _restoreFromCloud(
-      String backupId, BackupNotifier notifier) async {
-    final confirmed = await context.showConfirmationDialog(
-      title: 'Restaurer les données',
-      message:
-          '⚠️ Attention: La restauration remplacera les données actuelles. Êtes-vous sûr?',
-      confirmText: 'Restaurer',
-      confirmColor: AppColors.warningOrange,
+            const SizedBox(height: 24),
+
+            // Error Display
+            if (backupState.error != null) ...[
+              Card(
+                color: Colors.red.shade50,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error, color: Colors.red),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Text(
+                          backupState.error!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: backupNotifier.clearError,
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // Backup History
+            const Text(
+              '📚 Historique',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            if (backupState.backups.isEmpty)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Text('Aucune sauvegarde trouvée'),
+                ),
+              )
+            else
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: backupState.backups.length,
+                itemBuilder: (context, index) {
+                  final backup = backupState.backups[index];
+                  return Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.backup),
+                      title: Text('Sauvegarde ${index + 1}'),
+                      subtitle: Text(
+  '📅 ${backupNotifier.formatDate(
+    backup['createdAt'] == null
+        ? null
+        : backup['createdAt'].toString(),
+  )}\n'
+  '📏 ${backupNotifier.formatFileSize(
+    (backup['fileSizeMB'] as num?)?.toDouble() ?? 0,
+  )}',
+),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.cloud_upload),
+                        onPressed: () {
+                          // TODO: Implement cloud upload
+                        },
+                      ),
+                    ),
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
     );
-
-    if (confirmed != true) return;
-
-    setState(() => _isRestoring = true);
-    try {
-      final stats = await notifier.restoreFromCloud(backupId);
-
-      if (stats != null && mounted) {
-        String message = 'Restauration réussie:\n';
-        stats.forEach((collection, count) {
-          message += '- $collection: $count fichier(s)\n';
-        });
-        context.showSuccessSnackBar(message);
-      }
-    } catch (e) {
-      context.showErrorSnackBar('Erreur lors de la restauration: $e');
-    } finally {
-      if (mounted) setState(() => _isRestoring = false);
-    }
   }
 
-  Future<void> _deleteOldBackups(BackupNotifier notifier) async {
-    final confirmed = await context.showConfirmationDialog(
-      title: 'Supprimer les anciennes sauvegardes',
-      message:
-          'Toutes les sauvegardes de plus de 90 jours seront supprimées. Êtes-vous sûr?',
-      confirmText: 'Supprimer',
-      confirmColor: AppColors.emergencyRed,
+  Widget _buildStatItem(String label, String value) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+      ],
     );
-
-    if (confirmed != true) return;
-
-    try {
-      await notifier.deleteOldBackups();
-      context.showSuccessSnackBar('Anciennes sauvegardes supprimées');
-    } catch (e) {
-      context.showErrorSnackBar('Erreur lors de la suppression: $e');
-    }
-  }
-
-  void _shareBackupInfo(Map<String, dynamic> backup) {
-    final createdAt = (backup['createdAt'] as Timestamp?)?.toDate();
-    final fileSize = backup['fileSizeMB'] as double? ?? 0;
-    final isCloud = backup['downloadUrl'] != null;
-
-    final message = '''
-📦 Informations de sauvegarde - NéoSanté
-
-📁 Fichier: ${backup['fileName']}
-📅 Date: ${createdAt?.toLocal().toString().split(' ')[0]}
-⏰ Heure: ${createdAt?.toLocal().toString().split(' ')[1]}
-💾 Taille: ${fileSize.toStringAsFixed(2)} MB
-☁️ Cloud: ${isCloud ? 'Oui' : 'Non'}
-    ''';
-
-    Share.share(message);
   }
 }

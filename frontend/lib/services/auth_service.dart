@@ -1,10 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../core/errors/failure.dart';
 import '../shared/models/user_model.dart';
 import '../core/constants/app_constants.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+/// Provider
 final authServiceProvider = Provider<AuthService>((ref) {
   return AuthService();
 });
@@ -17,7 +19,10 @@ class AuthService {
 
   User? get currentFirebaseUser => _auth.currentUser;
 
-  /// Récupérer le modèle utilisateur courant depuis Firestore
+  // ============================================================
+  // CURRENT USER
+  // ============================================================
+
   Future<UserModel?> getCurrentUserModel() async {
     final user = _auth.currentUser;
     if (user == null) return null;
@@ -29,10 +34,16 @@ class AuthService {
 
     if (!doc.exists) return null;
 
-    return UserModel.fromJson(doc.data()!, docId: doc.id);
+    final data = doc.data();
+    if (data == null) return null;
+
+    return UserModel.fromJson(data, docId: doc.id);
   }
 
-  /// Connexion avec email / mot de passe
+  // ============================================================
+  // LOGIN
+  // ============================================================
+
   Future<UserModel> signInWithEmail(String email, String password) async {
     try {
       final userCredential = await _auth.signInWithEmailAndPassword(
@@ -47,7 +58,8 @@ class AuthService {
 
       if (!userDoc.exists) {
         throw const AuthFailure(
-            message: 'Utilisateur non trouvé dans la base de données.');
+          message: 'Utilisateur non trouvé dans la base de données.',
+        );
       }
 
       await userDoc.reference.update({
@@ -63,7 +75,10 @@ class AuthService {
     }
   }
 
-  /// Récupérer un utilisateur par son UID
+  // ============================================================
+  // GET USER BY ID
+  // ============================================================
+
   Future<UserModel?> getUserById(String uid) async {
     try {
       final userDoc = await _firestore
@@ -73,46 +88,63 @@ class AuthService {
 
       if (!userDoc.exists) return null;
 
-      return UserModel.fromJson(userDoc.data()!, docId: userDoc.id);
+      final data = userDoc.data();
+      if (data == null) return null;
+
+      return UserModel.fromJson(data, docId: userDoc.id);
     } catch (e) {
       throw AuthFailure(
-          message: 'Erreur lors de la récupération de l\'utilisateur: $e');
+        message: 'Erreur lors de la récupération de l\'utilisateur: $e',
+      );
     }
   }
 
-  /// Envoyer un email de réinitialisation de mot de passe
+  // ============================================================
+  // PASSWORD RESET
+  // ============================================================
+
   Future<void> sendPasswordResetEmail(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email.trim());
     } catch (e) {
       throw AuthFailure(
-          message:
-              'Erreur lors de l\'envoi de l\'email de réinitialisation : $e');
+        message:
+            'Erreur lors de l\'envoi de l\'email de réinitialisation : $e',
+      );
     }
   }
 
-  /// Déconnexion
+  // ============================================================
+  // LOGOUT (FIX IMPORTANT)
+  // ============================================================
+
   Future<void> signOut() async {
-    await _auth.signOut();
+    try {
+      await _auth.signOut();
+    } catch (e) {
+      throw AuthFailure(message: 'Erreur logout: $e');
+    }
   }
 
   // ============================================================
-  // 🔥 NOUVELLES FONCTIONS POUR ADMIN (GESTION DES UTILISATEURS)
+  // ADMIN USERS
   // ============================================================
 
-  /// Récupérer tous les utilisateurs (admin only)
   Future<List<UserModel>> getAllUsers() async {
     final snapshot = await _firestore
         .collection(AppConstants.usersCollection)
         .orderBy('createdAt', descending: true)
         .get();
+
     return snapshot.docs
         .map((doc) => UserModel.fromJson(doc.data(), docId: doc.id))
         .toList();
   }
 
-  /// Créer un utilisateur complet (admin only)
-  /// Cette méthode crée l'utilisateur dans Firebase Auth ET dans Firestore
+  // ============================================================
+  // CREATE USER (FIXED ROLLBACK)
+  // ============================================================
+
   Future<void> createFullUser({
     required String email,
     required String password,
@@ -126,8 +158,10 @@ class AuthService {
         password: password,
       );
 
+      final uid = userCredential.user!.uid;
+
       final newUser = UserModel(
-        id: userCredential.user!.uid,
+        id: uid,
         firstName: firstName,
         lastName: lastName,
         email: email.trim(),
@@ -137,16 +171,45 @@ class AuthService {
         isActive: true,
       );
 
-      await _firestore
-          .collection(AppConstants.usersCollection)
-          .doc(userCredential.user!.uid)
-          .set(newUser.toJson());
+      try {
+        await _firestore
+            .collection(AppConstants.usersCollection)
+            .doc(uid)
+            .set(newUser.toJson());
+      } catch (e) {
+        // rollback if Firestore fails
+        await userCredential.user?.delete();
+        throw AuthFailure(message: 'Erreur création user: $e');
+      }
     } catch (e) {
-      throw AuthFailure(message: 'Erreur lors de la création de l\'utilisateur: $e');
+      throw AuthFailure(
+        message: 'Erreur lors de la création de l\'utilisateur: $e',
+      );
     }
   }
 
-  /// Mettre à jour un utilisateur (admin only)
+  // ============================================================
+  // SIMPLE CREATE USER
+  // ============================================================
+
+  Future<UserCredential> createUserWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
+    try {
+      return await _auth.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+    } catch (e) {
+      throw AuthFailure(message: 'Erreur création utilisateur: $e');
+    }
+  }
+
+  // ============================================================
+  // UPDATE USER
+  // ============================================================
+
   Future<void> updateUser(String userId, Map<String, dynamic> data) async {
     try {
       await _firestore
@@ -158,8 +221,10 @@ class AuthService {
     }
   }
 
-  /// Désactiver un utilisateur (admin only)
-  /// Note: la suppression complète nécessiterait une Cloud Function
+  // ============================================================
+  // DISABLE USER
+  // ============================================================
+
   Future<void> disableUser(String uid) async {
     await _firestore.collection(AppConstants.usersCollection).doc(uid).update({
       'isActive': false,
@@ -167,11 +232,33 @@ class AuthService {
     });
   }
 
-  /// Réactiver un utilisateur (admin only)
+  // ============================================================
+  // ENABLE USER
+  // ============================================================
+
   Future<void> enableUser(String uid) async {
     await _firestore.collection(AppConstants.usersCollection).doc(uid).update({
       'isActive': true,
       'deletedAt': FieldValue.delete(),
     });
+  }
+
+  // ============================================================
+  // DELETE USER (soft delete)
+  // ============================================================
+
+  Future<void> deleteUser(String uid) async {
+    try {
+      await _firestore
+          .collection(AppConstants.usersCollection)
+          .doc(uid)
+          .update({
+        'isActive': false,
+        'deletedAt': FieldValue.serverTimestamp(),
+        'deletedBy': _auth.currentUser?.uid,
+      });
+    } catch (e) {
+      throw AuthFailure(message: 'Erreur lors de la suppression: $e');
+    }
   }
 }

@@ -1,8 +1,8 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../services/backup_service.dart';
-// import '../../../services/storage_service.dart';
 import '../../../services/auth_service.dart';
 
 /// Backup state class
@@ -18,9 +18,9 @@ class BackupState {
   const BackupState({
     this.backups = const [],
     this.isLoading = false,
-    this.error = null,
+    this.error,
     this.exportProgress = 0,
-    this.lastBackupDate = null,
+    this.lastBackupDate,
     this.totalBackups = 0,
     this.totalSizeMB = 0,
   });
@@ -55,7 +55,6 @@ final backupProvider =
 /// Backup notifier for managing backup operations
 class BackupNotifier extends StateNotifier<BackupState> {
   final BackupService _backupService = BackupService();
-  // final StorageService _storageService = StorageService();
   final AuthService _authService = AuthService();
 
   BackupNotifier() : super(const BackupState()) {
@@ -68,10 +67,9 @@ class BackupNotifier extends StateNotifier<BackupState> {
     try {
       final backups = await _backupService.getBackupHistory();
 
-      // Calculate totals
       int totalBackups = backups.length;
-      double totalSizeMB =
-          backups.fold(0, (sum, b) => sum + (b['fileSizeMB'] as double? ?? 0));
+      double totalSizeMB = backups.fold(
+          0.0, (total, b) => total + (b['fileSizeMB'] as double? ?? 0));
       String? lastBackupDate = backups.isNotEmpty
           ? (backups.first['createdAt'] as Timestamp?)?.toDate().toString()
           : null;
@@ -84,28 +82,30 @@ class BackupNotifier extends StateNotifier<BackupState> {
         lastBackupDate: lastBackupDate,
       );
     } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error loading backup history: $e');
+      }
       state = state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        error: '❌ Erreur lors du chargement: ${e.toString()}',
       );
     }
   }
 
   /// Export all data to JSON file
   Future<File?> exportAllData() async {
-    state = state.copyWith(isLoading: true, error: null, exportProgress: 0);
+    state = state.copyWith(isLoading: true, error: null, exportProgress: 0.1);
     try {
       final file = await _backupService.exportAllData();
-      state = state.copyWith(exportProgress: 0.5);
+      state = state.copyWith(exportProgress: 0.8);
 
-      // Save to device
-      state = state.copyWith(exportProgress: 1.0);
+      await Future.delayed(const Duration(milliseconds: 200));
       state = state.copyWith(isLoading: false, exportProgress: 0);
       return file;
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: 'خطأ في تصدير البيانات: $e',
+        error: '❌ Erreur d\'exportation: ${e.toString()}',
         exportProgress: 0,
       );
       return null;
@@ -117,13 +117,13 @@ class BackupNotifier extends StateNotifier<BackupState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final stats = await _backupService.importData(file);
-      await loadBackupHistory(); // Refresh history
+      await loadBackupHistory();
       state = state.copyWith(isLoading: false);
       return stats;
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: 'خطأ في استيراد البيانات: $e',
+        error: '❌ Erreur d\'importation: ${e.toString()}',
       );
       return null;
     }
@@ -135,18 +135,18 @@ class BackupNotifier extends StateNotifier<BackupState> {
     try {
       final currentUser = _authService.currentFirebaseUser;
       if (currentUser == null) {
-        throw Exception('يجب تسجيل الدخول أولاً');
+        throw Exception('🔐 Veuillez vous connecter');
       }
 
       final url =
           await _backupService.uploadBackupToCloud(file, currentUser.uid);
-      await loadBackupHistory(); // Refresh history
+      await loadBackupHistory();
       state = state.copyWith(isLoading: false);
       return url;
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: 'خطأ في رفع النسخة الاحتياطية: $e',
+        error: '☁️ Erreur d\'upload: ${e.toString()}',
       );
       return null;
     }
@@ -157,12 +157,13 @@ class BackupNotifier extends StateNotifier<BackupState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final stats = await _backupService.restoreFromCloud(backupId);
+      await loadBackupHistory();
       state = state.copyWith(isLoading: false);
       return stats;
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: 'خطأ في استعادة النسخة الاحتياطية: $e',
+        error: '❌ Erreur de restauration: ${e.toString()}',
       );
       return null;
     }
@@ -179,7 +180,7 @@ class BackupNotifier extends StateNotifier<BackupState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: 'خطأ في حذف النسخ القديمة: $e',
+        error: '🗑️ Erreur de suppression: ${e.toString()}',
       );
       return 0;
     }
@@ -195,7 +196,7 @@ class BackupNotifier extends StateNotifier<BackupState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: 'خطأ في تصدير الملفات: $e',
+        error: '📁 Erreur d\'exportation: ${e.toString()}',
       );
       return null;
     }
@@ -208,15 +209,16 @@ class BackupNotifier extends StateNotifier<BackupState> {
 
   /// Format file size
   String formatFileSize(double sizeMB) {
+    if (sizeMB < 0.001) return '0 KB';
     if (sizeMB < 1) {
-      return '${(sizeMB * 1024).toStringAsFixed(0)} KB';
+      return '${(sizeMB * 1024).toStringAsFixed(1)} KB';
     }
     return '${sizeMB.toStringAsFixed(2)} MB';
   }
 
   /// Format date
   String formatDate(String? dateString) {
-    if (dateString == null) return 'لا يوجد';
+    if (dateString == null) return '📅 Aucune';
     try {
       final date = DateTime.parse(dateString);
       return '${date.day}/${date.month}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';

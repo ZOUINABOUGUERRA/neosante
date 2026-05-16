@@ -1,6 +1,7 @@
-import 'package:async/async.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:async/async.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../shared/models/alert_model.dart';
 import '../../../shared/models/transfer_model.dart';
@@ -87,16 +88,15 @@ class DashboardStats {
 /// Dashboard provider - manages dashboard statistics
 final dashboardProvider =
     StateNotifierProvider<DashboardNotifier, DashboardStats>((ref) {
-  return DashboardNotifier(ref);
+  return DashboardNotifier();
 });
 
 /// Dashboard notifier for loading and managing dashboard statistics
 class DashboardNotifier extends StateNotifier<DashboardStats> {
-  final Ref _ref;
+  //final Ref _ref;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  DashboardNotifier(this._ref)
-      : super(DashboardStats(lastUpdated: DateTime.now()));
+  DashboardNotifier() : super(DashboardStats(lastUpdated: DateTime.now()));
 
   /// Load all dashboard statistics
   Future<void> loadStats() async {
@@ -130,7 +130,7 @@ class DashboardNotifier extends StateNotifier<DashboardStats> {
       );
     } catch (e) {
       // Keep existing state on error
-      print('Error loading dashboard stats: $e');
+      debugPrint('Error loading dashboard stats: $e');
     }
   }
 
@@ -355,8 +355,7 @@ final recentAlertsProvider = StreamProvider<List<AlertModel>>((ref) {
       .limit(10)
       .snapshots()
       .map((snapshot) => snapshot.docs
-          .map((doc) =>
-              AlertModel.fromJson(doc.data(), doc.id))
+          .map((doc) => AlertModel.fromJson(doc.data(), doc.id))
           .toList());
 });
 
@@ -370,8 +369,7 @@ final recentTransfersProvider = StreamProvider<List<TransferModel>>((ref) {
       .limit(5)
       .snapshots()
       .map((snapshot) => snapshot.docs
-          .map((doc) => TransferModel.fromJson(
-              doc.data(), doc.id))
+          .map((doc) => TransferModel.fromJson(doc.data(), doc.id))
           .toList());
 });
 

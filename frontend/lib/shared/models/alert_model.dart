@@ -2,16 +2,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
 import '../../core/constants/app_constants.dart';
 
-/// Alert model for medical alerts generated from patient data.
-/// Supports real-time monitoring and severity-based notifications.
 class AlertModel extends Equatable {
   final String id;
   final String dossierId;
   final String dossierNumber;
   final String newbornName;
-  final String parameter; // e.g., 'glucose', 'temperature', 'apgar', 'respiration', 'cry', 'tonus'
-  final dynamic value; // The value that triggered the alert
-  final String severity; // 'critical', 'warning', 'medium', 'info'
+  final String parameter;
+  final dynamic value;
+  final String severity;
   final String message;
   final bool isRead;
   final bool isAcknowledged;
@@ -37,7 +35,7 @@ class AlertModel extends Equatable {
     this.actionTaken,
   });
 
-  /// Creates an AlertModel from Firestore document.
+  /// ---------------- FIRESTORE FROM JSON ----------------
   factory AlertModel.fromJson(Map<String, dynamic> json, String docId) {
     return AlertModel(
       id: docId,
@@ -51,13 +49,17 @@ class AlertModel extends Equatable {
       isRead: json['isRead'] ?? false,
       isAcknowledged: json['isAcknowledged'] ?? false,
       acknowledgedBy: json['acknowledgedBy'],
-      acknowledgedAt: (json['acknowledgedAt'] as Timestamp?)?.toDate(),
-      timestamp: (json['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      acknowledgedAt: (json['acknowledgedAt'] is Timestamp)
+          ? (json['acknowledgedAt'] as Timestamp).toDate()
+          : null,
+      timestamp: (json['timestamp'] is Timestamp)
+          ? (json['timestamp'] as Timestamp).toDate()
+          : DateTime.now(),
       actionTaken: json['actionTaken'],
     );
   }
 
-  /// Converts AlertModel to Firestore document.
+  /// ---------------- TO FIRESTORE ----------------
   Map<String, dynamic> toJson() {
     return {
       'dossierId': dossierId,
@@ -70,36 +72,44 @@ class AlertModel extends Equatable {
       'isRead': isRead,
       'isAcknowledged': isAcknowledged,
       'acknowledgedBy': acknowledgedBy,
-      'acknowledgedAt': acknowledgedAt != null ? Timestamp.fromDate(acknowledgedAt!) : null,
+      'acknowledgedAt':
+          acknowledgedAt != null ? Timestamp.fromDate(acknowledgedAt!) : null,
       'timestamp': Timestamp.fromDate(timestamp),
       'actionTaken': actionTaken,
     };
   }
 
-  /// Returns true if the alert requires immediate attention.
-  bool get requiresImmediateAttention => 
+  /// ---------------- LOGIC ----------------
+  bool get requiresImmediateAttention =>
       severity == AppConstants.alertSeverityCritical;
 
-  /// Returns the color code for this alert's severity.
   int get severityColor {
     switch (severity) {
-      case AppConstants.alertSeverityCritical: return 0xFFFF3B3B;
-      case AppConstants.alertSeverityWarning: return 0xFFFFA500;
-      case AppConstants.alertSeverityMedium: return 0xFFFFD700;
-      default: return 0xFF4CAF50;
+      case AppConstants.alertSeverityCritical:
+        return 0xFFFF3B3B;
+      case AppConstants.alertSeverityWarning:
+        return 0xFFFFA500;
+      case AppConstants.alertSeverityMedium:
+        return 0xFFFFD700;
+      default:
+        return 0xFF4CAF50;
     }
   }
 
-  /// Returns the display label for this alert's severity.
   String get severityLabel {
     switch (severity) {
-      case AppConstants.alertSeverityCritical: return 'Urgence';
-      case AppConstants.alertSeverityWarning: return 'Surveillance';
-      case AppConstants.alertSeverityMedium: return 'Attention';
-      default: return 'Information';
+      case AppConstants.alertSeverityCritical:
+        return 'Urgence';
+      case AppConstants.alertSeverityWarning:
+        return 'Surveillance';
+      case AppConstants.alertSeverityMedium:
+        return 'Attention';
+      default:
+        return 'Information';
     }
   }
 
+  /// ---------------- COPY ----------------
   AlertModel copyWith({
     String? id,
     String? dossierId,
@@ -135,5 +145,14 @@ class AlertModel extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, dossierId, severity, isRead, isAcknowledged];
+  List<Object?> get props => [
+        id,
+        dossierId,
+        dossierNumber,
+        parameter,
+        severity,
+        isRead,
+        isAcknowledged,
+        timestamp,
+      ];
 }

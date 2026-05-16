@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/admin_provider.dart';
 import '../widgets/user_card.dart';
-import 'add_user_screen.dart';
+import 'add_edit_user_screen.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
 import '../../../shared/extensions/context_ext.dart';
@@ -15,7 +15,8 @@ class UserManagementScreen extends ConsumerStatefulWidget {
   const UserManagementScreen({super.key});
 
   @override
-  ConsumerState<UserManagementScreen> createState() => _UserManagementScreenState();
+  ConsumerState<UserManagementScreen> createState() =>
+      _UserManagementScreenState();
 }
 
 class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
@@ -60,8 +61,10 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                         return UserCard(
                           user: user,
                           onEdit: () => _showEditUserDialog(user),
-                          onToggleStatus: () => _toggleUserStatus(adminNotifier, user),
-                          onResetPassword: () => _resetPassword(adminNotifier, user),
+                          onToggleStatus: () =>
+                              _toggleUserStatus(adminNotifier, user),
+                          onResetPassword: () =>
+                              _resetPassword(adminNotifier, user),
                           onDelete: () => _deleteUser(adminNotifier, user),
                         );
                       },
@@ -73,7 +76,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
   void _showAddUserDialog() {
     showDialog(
       context: context,
-      builder: (context) => const AddUserScreen(),
+      builder: (context) => const AddEditUserScreen(),
     ).then((_) {
       // Rafraîchit la liste après la fermeture du dialogue
       ref.read(adminUsersProvider.notifier).refresh();
@@ -97,28 +100,31 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            ListTile(
-              title: const Text('Sage-femme'),
-              leading: Radio<String>(
-                value: 'sage-femme',
-                groupValue: user.role,
-                onChanged: (value) async {
-                  Navigator.pop(context);
-                  await ref.read(adminUsersProvider.notifier).updateUserRole(user.id, value!);
-                  if (mounted) context.showSuccessSnackBar('Rôle modifié');
-                },
-              ),
-            ),
-            ListTile(
-              title: const Text('Administrateur'),
-              leading: Radio<String>(
-                value: 'admin',
-                groupValue: user.role,
-                onChanged: (value) async {
-                  Navigator.pop(context);
-                  await ref.read(adminUsersProvider.notifier).updateUserRole(user.id, value!);
-                  if (mounted) context.showSuccessSnackBar('Rôle modifié');
-                },
+            RadioGroup<String>(
+              groupValue: user.role,
+              onChanged: (value) async {
+                if (!mounted || value == null) return;
+                final messenger = ScaffoldMessenger.of(context);
+                Navigator.pop(context);
+                await ref
+                    .read(adminUsersProvider.notifier)
+                    .updateUserRole(user.id, value);
+                if (!mounted) return;
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('Rôle modifié')),
+                );
+              },
+              child: const Column(
+                children: [
+                  RadioListTile<String>(
+                    title: Text('Sage-femme'),
+                    value: 'sage-femme',
+                  ),
+                  RadioListTile<String>(
+                    title: Text('Administrateur'),
+                    value: 'admin',
+                  ),
+                ],
               ),
             ),
           ],
@@ -128,7 +134,8 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
   }
 
   // Activer / Désactiver un compte
-  Future<void> _toggleUserStatus(AdminUsersNotifier notifier, UserModel user) async {
+  Future<void> _toggleUserStatus(
+      AdminUsersNotifier notifier, UserModel user) async {
     final confirmed = await context.showConfirmationDialog(
       title: user.isActive ? 'Désactiver le compte' : 'Activer le compte',
       message: user.isActive
@@ -147,10 +154,12 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
   }
 
   // Envoyer un email de réinitialisation du mot de passe
-  Future<void> _resetPassword(AdminUsersNotifier notifier, UserModel user) async {
+  Future<void> _resetPassword(
+      AdminUsersNotifier notifier, UserModel user) async {
     final confirmed = await context.showConfirmationDialog(
       title: 'Réinitialiser le mot de passe',
-      message: 'Un email de réinitialisation sera envoyé à ${user.email}. Continuer ?',
+      message:
+          'Un email de réinitialisation sera envoyé à ${user.email}. Continuer ?',
       confirmText: 'Envoyer',
     );
     if (confirmed != true) return;
@@ -164,13 +173,15 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
   // Supprimer définitivement un compte (uniquement pour les non‑admin)
   Future<void> _deleteUser(AdminUsersNotifier notifier, UserModel user) async {
     if (user.isAdmin) {
-      context.showErrorSnackBar('Impossible de supprimer le compte administrateur principal');
+      context.showErrorSnackBar(
+          'Impossible de supprimer le compte administrateur principal');
       return;
     }
 
     final confirmed = await context.showConfirmationDialog(
       title: 'Supprimer le compte',
-      message: '⚠️ Cette action est irréversible.\n\nSupprimer définitivement le compte de ${user.fullName} ?',
+      message:
+          '⚠️ Cette action est irréversible.\n\nSupprimer définitivement le compte de ${user.fullName} ?',
       confirmText: 'Supprimer',
       confirmColor: AppColors.emergencyRed,
     );

@@ -1,4 +1,5 @@
 import 'dart:async';
+//import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/constants/app_constants.dart';
@@ -21,7 +22,7 @@ class TransferState {
     this.rejectedTransfers = const [],
     this.completedTransfers = const [],
     this.isLoading = false,
-    this.error = null,
+    this.error,
   });
 
   TransferState copyWith({
@@ -54,20 +55,24 @@ class TransferState {
 }
 
 /// Transfer provider
-final transferProvider =
-    StateNotifierProvider<TransferNotifier, TransferState>((ref) {
-  return TransferNotifier();
-});
+final transferProvider = StateNotifierProvider<TransferNotifier, TransferState>(
+  (ref) {
+    return TransferNotifier();
+  },
+);
 
 /// Transfer notifier for managing transfer requests
 class TransferNotifier extends StateNotifier<TransferState> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final AuthService _authService = AuthService();
-  // ✅ تحديد النوع الصحيح لـ StreamSubscription
+
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _pendingSubscription;
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _approvedSubscription;
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _rejectedSubscription;
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _completedSubscription;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+  _approvedSubscription;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+  _rejectedSubscription;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+  _completedSubscription;
 
   TransferNotifier() : super(const TransferState()) {
     _loadTransfers();
@@ -77,59 +82,82 @@ class TransferNotifier extends StateNotifier<TransferState> {
     final currentUser = _authService.currentFirebaseUser;
     if (currentUser == null) return;
 
-    // Load pending transfers (where current user is the requested doctor)
+    // Pending transfers
     _pendingSubscription = _firestore
         .collection(AppConstants.transfersCollection)
         .where('requestedTo', isEqualTo: currentUser.uid)
         .where('status', isEqualTo: AppConstants.transferStatusPending)
         .orderBy('requestedAt', descending: true)
         .snapshots()
-        .listen((snapshot) {
-      final transfers = snapshot.docs
-          // ✅ إزالة التحويل غير الضروري
-          .map((doc) => TransferModel.fromJson(doc.data(), doc.id))
-          .toList();
-      state = state.copyWith(pendingTransfers: transfers);
-    });
+        .listen(
+          (snapshot) {
+            final transfers = snapshot.docs
+                .map((doc) => TransferModel.fromJson(doc.data(), doc.id))
+                .toList();
 
-    // Load approved transfers
+            state = state.copyWith(pendingTransfers: transfers, error: null);
+          },
+          onError: (e) {
+            state = state.copyWith(error: e.toString());
+          },
+        );
+
+    // Approved transfers
     _approvedSubscription = _firestore
         .collection(AppConstants.transfersCollection)
         .where('status', isEqualTo: AppConstants.transferStatusApproved)
         .orderBy('respondedAt', descending: true)
         .snapshots()
-        .listen((snapshot) {
-      final transfers = snapshot.docs
-          .map((doc) => TransferModel.fromJson(doc.data(), doc.id))
-          .toList();
-      state = state.copyWith(approvedTransfers: transfers);
-    });
+        .listen(
+          (snapshot) {
+            final transfers = snapshot.docs
+                .map((doc) => TransferModel.fromJson(doc.data(), doc.id))
+                .toList();
 
-    // Load rejected transfers
+            state = state.copyWith(approvedTransfers: transfers, error: null);
+          },
+          onError: (e) {
+            state = state.copyWith(error: e.toString());
+          },
+        );
+
+    // Rejected transfers
     _rejectedSubscription = _firestore
         .collection(AppConstants.transfersCollection)
         .where('status', isEqualTo: AppConstants.transferStatusRejected)
         .orderBy('respondedAt', descending: true)
         .snapshots()
-        .listen((snapshot) {
-      final transfers = snapshot.docs
-          .map((doc) => TransferModel.fromJson(doc.data(), doc.id))
-          .toList();
-      state = state.copyWith(rejectedTransfers: transfers);
-    });
+        .listen(
+          (snapshot) {
+            final transfers = snapshot.docs
+                .map((doc) => TransferModel.fromJson(doc.data(), doc.id))
+                .toList();
 
-    // Load completed transfers
+            state = state.copyWith(rejectedTransfers: transfers, error: null);
+          },
+          onError: (e) {
+            state = state.copyWith(error: e.toString());
+          },
+        );
+
+    // Completed transfers
     _completedSubscription = _firestore
         .collection(AppConstants.transfersCollection)
         .where('status', isEqualTo: AppConstants.transferStatusCompleted)
         .orderBy('completedAt', descending: true)
         .snapshots()
-        .listen((snapshot) {
-      final transfers = snapshot.docs
-          .map((doc) => TransferModel.fromJson(doc.data(), doc.id))
-          .toList();
-      state = state.copyWith(completedTransfers: transfers);
-    });
+        .listen(
+          (snapshot) {
+            final transfers = snapshot.docs
+                .map((doc) => TransferModel.fromJson(doc.data(), doc.id))
+                .toList();
+
+            state = state.copyWith(completedTransfers: transfers, error: null);
+          },
+          onError: (e) {
+            state = state.copyWith(error: e.toString());
+          },
+        );
   }
 
   /// Approve a transfer request
@@ -145,7 +173,10 @@ class TransferNotifier extends StateNotifier<TransferState> {
         throw Exception('Transfert non trouvé');
       }
 
-      final transfer = TransferModel.fromJson(transferDoc.data()!, transferDoc.id);
+      final transfer = TransferModel.fromJson(
+        transferDoc.data()!,
+        transferDoc.id,
+      );
 
       // Update transfer status
       await transferRef.update({
@@ -159,25 +190,29 @@ class TransferNotifier extends StateNotifier<TransferState> {
       final dossierRef = _firestore
           .collection(AppConstants.dossiersPrematuresCollection)
           .doc(transfer.dossierId);
-      await dossierRef.update({
-        'assignedDoctorId': transfer.requestedTo,
-        'transferStatus': AppConstants.transferStatusApproved,
-        'transferredAt': FieldValue.serverTimestamp(),
-      }).catchError((_) async {
-        // Try full-term collection if not found
-        await _firestore
-            .collection(AppConstants.dossiersATermeCollection)
-            .doc(transfer.dossierId)
-            .update({
-          'assignedDoctorId': transfer.requestedTo,
-          'transferStatus': AppConstants.transferStatusApproved,
-          'transferredAt': FieldValue.serverTimestamp(),
-        });
-      });
+      await dossierRef
+          .update({
+            'assignedDoctorId': transfer.requestedTo,
+            'transferStatus': AppConstants.transferStatusApproved,
+            'transferredAt': FieldValue.serverTimestamp(),
+          })
+          .catchError((_) async {
+            // Try full-term collection if not found
+            await _firestore
+                .collection(AppConstants.dossiersATermeCollection)
+                .doc(transfer.dossierId)
+                .update({
+                  'assignedDoctorId': transfer.requestedTo,
+                  'transferStatus': AppConstants.transferStatusApproved,
+                  'transferredAt': FieldValue.serverTimestamp(),
+                });
+          });
 
       // Send notification to requester (sage-femme)
       await NotificationService.notifyTransferApproved(
-          transfer.requestedBy, transfer.dossierNumber);
+        transfer.requestedBy,
+        transfer.dossierNumber,
+      );
 
       state = state.copyWith(isLoading: false);
     } catch (e) {
@@ -199,7 +234,10 @@ class TransferNotifier extends StateNotifier<TransferState> {
         throw Exception('Transfert non trouvé');
       }
 
-      final transfer = TransferModel.fromJson(transferDoc.data()!, transferDoc.id);
+      final transfer = TransferModel.fromJson(
+        transferDoc.data()!,
+        transferDoc.id,
+      );
 
       await transferRef.update({
         'status': AppConstants.transferStatusRejected,
@@ -208,11 +246,11 @@ class TransferNotifier extends StateNotifier<TransferState> {
         'respondedBy': _authService.currentFirebaseUser?.uid,
       });
 
-      // ✅ إصلاح TODO: إرسال إشعار رفض
       await NotificationService.sendPushNotification(
         userId: transfer.requestedBy,
-        title: 'Transfert refusé',
-        body: 'Le transfert du dossier ${transfer.dossierNumber} a été refusé. Raison: $reason',
+        title: '❌ Transfert refusé',
+        body:
+            'Le transfert du dossier ${transfer.dossierNumber} a été refusé.\nRaison: $reason',
         type: 'transfer_rejected',
         data: {'transferId': transferId, 'dossierId': transfer.dossierId},
       );
@@ -232,9 +270,9 @@ class TransferNotifier extends StateNotifier<TransferState> {
           .collection(AppConstants.transfersCollection)
           .doc(transferId)
           .update({
-        'status': AppConstants.transferStatusCompleted,
-        'completedAt': FieldValue.serverTimestamp(),
-      });
+            'status': AppConstants.transferStatusCompleted,
+            'completedAt': FieldValue.serverTimestamp(),
+          });
       state = state.copyWith(isLoading: false);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -319,7 +357,9 @@ final myTransferRequestsProvider = StreamProvider<List<TransferModel>>((ref) {
       .where('requestedBy', isEqualTo: currentUser.uid)
       .orderBy('requestedAt', descending: true)
       .snapshots()
-      .map((snapshot) => snapshot.docs
-          .map((doc) => TransferModel.fromJson(doc.data(), doc.id))
-          .toList());
+      .map(
+        (snapshot) => snapshot.docs
+            .map((doc) => TransferModel.fromJson(doc.data(), doc.id))
+            .toList(),
+      );
 });

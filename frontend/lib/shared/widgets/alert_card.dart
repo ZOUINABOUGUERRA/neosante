@@ -1,5 +1,3 @@
-// frontend/lib/shared/widgets/alert_card.dart
-
 import 'package:flutter/material.dart';
 import '../../theme/colors.dart';
 import '../../core/constants/app_constants.dart';
@@ -20,49 +18,66 @@ class AlertCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color = _getSeverityColor();
+    final emoji = _getSeverityEmoji();
+
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: _getSeverityColor(),
-          width: 2,
-        ),
-      ),
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: _getSeverityColor().withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color, width: 1.5),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [color, color.withValues(alpha: 0.7)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withValues(alpha: 0.3),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Text(emoji, style: const TextStyle(fontSize: 18)),
                 ),
-                child: Icon(
-                  _getSeverityIcon(),
-                  color: _getSeverityColor(),
-                  size: 20,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    message,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.4,
+                      color: color == AppColors.mediumYellow
+                          ? AppColors.darkGray
+                          : Colors.black87,
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  message,
-                  style: const TextStyle(fontSize: 14),
-                ),
-              ),
-              if (onDismiss != null)
-                IconButton(
-                  icon: const Icon(Icons.close, size: 18),
-                  onPressed: onDismiss,
-                  tooltip: 'Ignorer',
-                ),
-            ],
+                if (onDismiss != null)
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                    onPressed: onDismiss,
+                    tooltip: 'Ignorer',
+                    splashRadius: 20,
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -82,16 +97,30 @@ class AlertCard extends StatelessWidget {
     }
   }
 
-  IconData _getSeverityIcon() {
+  // ✅ إزالة هذه الدالة إذا لم تستخدمها، أو احتفظ بها إذا احتجتها لاحقاً
+  // IconData _getSeverityIcon() {
+  //   switch (severity) {
+  //     case AppConstants.alertSeverityCritical:
+  //       return Icons.warning_rounded;
+  //     case AppConstants.alertSeverityWarning:
+  //       return Icons.info_rounded;
+  //     case AppConstants.alertSeverityMedium:
+  //       return Icons.notifications_active_rounded;
+  //     default:
+  //       return Icons.check_circle_rounded;
+  //   }
+  // }
+
+  String _getSeverityEmoji() {
     switch (severity) {
       case AppConstants.alertSeverityCritical:
-        return Icons.warning;
+        return '🚨';
       case AppConstants.alertSeverityWarning:
-        return Icons.info;
+        return '⚠️';
       case AppConstants.alertSeverityMedium:
-        return Icons.notifications_active;
+        return '🔔';
       default:
-        return Icons.check_circle;
+        return '✅';
     }
   }
 }

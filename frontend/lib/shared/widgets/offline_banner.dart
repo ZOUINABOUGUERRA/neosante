@@ -8,11 +8,7 @@ class OfflineBanner extends StatelessWidget {
   final bool isOnline;
   final VoidCallback? onRetry;
 
-  const OfflineBanner({
-    super.key,
-    required this.isOnline,
-    this.onRetry,
-  });
+  const OfflineBanner({super.key, required this.isOnline, this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -31,15 +27,11 @@ class OfflineBanner extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
+                const Row(
                   children: [
-                    const Icon(
-                     Icons.wifi_off,
-                      color:Colors.white,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    const Text(
+                    Icon(Icons.wifi_off, color: Colors.white, size: 20),
+                    SizedBox(width: 12),
+                    Text(
                       'Mode hors ligne - Données locales uniquement',
                       style: TextStyle(
                         color: Colors.white,
@@ -52,9 +44,7 @@ class OfflineBanner extends StatelessWidget {
                 if (onRetry != null)
                   TextButton(
                     onPressed: onRetry,
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.white,
-                    ),
+                    style: TextButton.styleFrom(foregroundColor: Colors.white),
                     child: const Text('Réessayer'),
                   ),
               ],
@@ -82,7 +72,8 @@ class PersistentOfflineBanner extends StatefulWidget {
   });
 
   @override
-  State<PersistentOfflineBanner> createState() => _PersistentOfflineBannerState();
+  State<PersistentOfflineBanner> createState() =>
+      _PersistentOfflineBannerState();
 }
 
 class _PersistentOfflineBannerState extends State<PersistentOfflineBanner>
@@ -100,10 +91,7 @@ class _PersistentOfflineBannerState extends State<PersistentOfflineBanner>
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, -1),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
     if (!widget.isOnline) {
       _controller.forward();
@@ -138,7 +126,9 @@ class _PersistentOfflineBannerState extends State<PersistentOfflineBanner>
         elevation: 8,
         child: Container(
           width: double.infinity,
-          color: widget.isOnline ? AppColors.stableGreen : AppColors.warningOrange,
+          color: widget.isOnline
+              ? AppColors.stableGreen
+              : AppColors.warningOrange,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
@@ -176,17 +166,15 @@ class _PersistentOfflineBannerState extends State<PersistentOfflineBanner>
               if (!widget.isOnline && widget.onRetry != null)
                 TextButton(
                   onPressed: widget.onRetry,
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.white,
-                  ),
+                  style: TextButton.styleFrom(foregroundColor: Colors.white),
                   child: const Text('Réessayer'),
                 ),
-              if (widget.isOnline && widget.pendingSyncCount > 0 && widget.onSync != null)
+              if (widget.isOnline &&
+                  widget.pendingSyncCount > 0 &&
+                  widget.onSync != null)
                 TextButton(
                   onPressed: widget.onSync,
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.white,
-                  ),
+                  style: TextButton.styleFrom(foregroundColor: Colors.white),
                   child: Text('${widget.pendingSyncCount} en attente'),
                 ),
             ],
@@ -213,9 +201,9 @@ class OfflineIndicator extends StatelessWidget {
         color: AppColors.warningOrange,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(
+      child: const Row(
         mainAxisSize: MainAxisSize.min,
-        children: const [
+        children: [
           Icon(Icons.wifi_off, color: Colors.white, size: 12),
           SizedBox(width: 4),
           Text(
@@ -246,7 +234,7 @@ class OfflineSyncDialog extends StatelessWidget {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
+          const Icon(
             Icons.cloud_upload,
             size: 48,
             color: AppColors.warningOrange,

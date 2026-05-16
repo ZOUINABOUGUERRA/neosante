@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
 import '../../../theme/colors.dart';
 import '../../../shared/extensions/context_ext.dart';
 import '../../../core/constants/app_constants.dart';
@@ -18,7 +19,6 @@ class TransferRequestsScreen extends ConsumerStatefulWidget {
 class _TransferRequestsScreenState
     extends ConsumerState<TransferRequestsScreen> {
   int _selectedTab = 0; // 0: Pending, 1: Approved, 2: Rejected, 3: Completed
-  //TransferModel? _selectedTransfer;
   String? _rejectionReason;
 
   @override
@@ -28,20 +28,33 @@ class _TransferRequestsScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Demandes de transfert'),
+        title: const Text('🚑 Demandes de transfert'),
         backgroundColor: Colors.transparent,
+        elevation: 0,
         actions: [
           if (transferState.totalPending > 0)
             Container(
               margin: const EdgeInsets.only(right: 16),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: AppColors.emergencyRed,
-                borderRadius: BorderRadius.circular(12),
+                gradient: const LinearGradient(
+                  colors: [AppColors.emergencyRed, AppColors.emergencyRed],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.emergencyRed.withValues(alpha: 0.3),
+                    blurRadius: 6,
+                  ),
+                ],
               ),
               child: Text(
-                '${transferState.totalPending} en attente',
-                style: const TextStyle(color: Colors.white, fontSize: 12),
+                '🔔 ${transferState.totalPending} en attente',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
         ],
@@ -57,34 +70,55 @@ class _TransferRequestsScreenState
       children: [
         // Sidebar with tabs
         Container(
-          width: 250,
+          width: 260,
           decoration: BoxDecoration(
             color: Colors.white,
             border: Border(right: BorderSide(color: Colors.grey.shade200)),
           ),
           child: Column(
             children: [
+              const SizedBox(height: 16),
               _buildTabButton(
-                  'En attente', 0, transferState.totalPending, Icons.pending),
-              _buildTabButton('Approuvés', 1, transferState.totalApproved,
-                  Icons.check_circle),
+                '⏳ En attente',
+                0,
+                transferState.totalPending,
+                Icons.pending,
+                AppColors.warningOrange,
+              ),
               _buildTabButton(
-                  'Refusés', 2, transferState.totalRejected, Icons.cancel),
+                '✅ Approuvés',
+                1,
+                transferState.totalApproved,
+                Icons.check_circle,
+                AppColors.stableGreen,
+              ),
               _buildTabButton(
-                  'Terminés', 3, transferState.totalCompleted, Icons.done_all),
+                '❌ Refusés',
+                2,
+                transferState.totalRejected,
+                Icons.cancel,
+                AppColors.emergencyRed,
+              ),
+              _buildTabButton(
+                '🏁 Terminés',
+                3,
+                transferState.totalCompleted,
+                Icons.done_all,
+                AppColors.medicalBlue,
+              ),
             ],
           ),
         ),
         // Content area
-        Expanded(
-          child: _buildContent(transferState),
-        ),
+        Expanded(child: _buildContent(transferState)),
       ],
     );
   }
 
   Widget _buildMobileLayout(TransferState transferState) {
-    return Column(
+    return DefaultTabController(
+           length: 4,
+            child: Column(
       children: [
         // Tab bar
         Container(
@@ -94,45 +128,68 @@ class _TransferRequestsScreenState
             labelColor: AppColors.medicalBlue,
             unselectedLabelColor: Colors.grey,
             indicatorColor: AppColors.medicalBlue,
+            indicatorSize: TabBarIndicatorSize.tab,
             tabs: const [
-              Tab(text: 'En attente'),
-              Tab(text: 'Approuvés'),
-              Tab(text: 'Refusés'),
-              Tab(text: 'Terminés'),
+              Tab(icon: Icon(Icons.pending), text: '⏳ En attente'),
+              Tab(icon: Icon(Icons.check_circle), text: '✅ Approuvés'),
+              Tab(icon: Icon(Icons.cancel), text: '❌ Refusés'),
+              Tab(icon: Icon(Icons.done_all), text: '🏁 Terminés'),
             ],
           ),
         ),
         // Content
-        Expanded(
-          child: _buildContent(transferState),
-        ),
+        Expanded(child: _buildContent(transferState)),
       ],
+            ),
+    //),
     );
   }
 
-  Widget _buildTabButton(String title, int index, int count, IconData icon) {
+  Widget _buildTabButton(
+    String title,
+    int index,
+    int count,
+    IconData icon,
+    Color color,
+  ) {
     final isSelected = _selectedTab == index;
-    return ListTile(
-      leading:
-          Icon(icon, color: isSelected ? AppColors.medicalBlue : Colors.grey),
-      title: Text(title,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: ListTile(
+        leading: Icon(icon, color: isSelected ? color : Colors.grey),
+        title: Text(
+          title,
           style: TextStyle(
-              color: isSelected ? AppColors.medicalBlue : Colors.grey)),
-      trailing: count > 0
-          ? Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: isSelected ? AppColors.medicalBlue : Colors.grey,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                count.toString(),
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-            )
-          : null,
-      tileColor: isSelected ? AppColors.medicalBlue.withValues(alpha: 0.05) : null,
-      onTap: () => setState(() => _selectedTab = index),
+            color: isSelected ? color : Colors.grey,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+        trailing: count > 0
+            ? Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [color, color.withValues(alpha: 0.8)],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  count.toString(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              )
+            : null,
+        tileColor: isSelected ? color.withValues(alpha: 0.1) : null,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        onTap: () => setState(() => _selectedTab = index),
+      ),
     );
   }
 
@@ -152,7 +209,12 @@ class _TransferRequestsScreenState
             const SizedBox(height: 16),
             Text(
               _getEmptyMessage(),
-              style: TextStyle(color: Colors.grey[600]),
+              style: TextStyle(color: Colors.grey[600], fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _getEmptySubMessage(),
+              style: TextStyle(color: Colors.grey[500], fontSize: 12),
             ),
           ],
         ),
@@ -164,7 +226,10 @@ class _TransferRequestsScreenState
       itemCount: transfers.length,
       itemBuilder: (context, index) {
         final transfer = transfers[index];
-        return _buildTransferCard(transfer);
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: _buildTransferCard(transfer),
+        );
       },
     );
   }
@@ -199,6 +264,21 @@ class _TransferRequestsScreenState
     }
   }
 
+  String _getEmptySubMessage() {
+    switch (_selectedTab) {
+      case 0:
+        return 'Les nouvelles demandes apparaîtront ici';
+      case 1:
+        return 'Les transferts approuvés sont listés ici';
+      case 2:
+        return 'Aucun transfert n\'a été refusé';
+      case 3:
+        return 'Les transferts terminés sont archivés ici';
+      default:
+        return '';
+    }
+  }
+
   IconData _getEmptyIcon() {
     switch (_selectedTab) {
       case 0:
@@ -216,33 +296,41 @@ class _TransferRequestsScreenState
 
   Widget _buildTransferCard(TransferModel transfer) {
     final statusColor = _getStatusColor(transfer.status);
-    final statusIcon = _getStatusIcon(transfer.status);
+    final statusEmoji = _getStatusEmoji(transfer.status);
     final statusLabel = _getStatusLabel(transfer.status);
+    final isPending = transfer.status == AppConstants.transferStatusPending;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 2,
+      elevation: isPending ? 4 : 2,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: transfer.status == AppConstants.transferStatusPending
-            ?  const BorderSide(color: AppColors.warningOrange, width: 2)
+        borderRadius: BorderRadius.circular(20),
+        side: isPending
+            ? const BorderSide(color: AppColors.warningOrange, width: 2)
             : BorderSide.none,
       ),
       child: ExpansionTile(
-        leading: CircleAvatar(
-          backgroundColor: statusColor.withValues(alpha: 0.2),
-          child: Icon(statusIcon, color: statusColor),
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [statusColor, statusColor.withValues(alpha: 0.7)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            shape: BoxShape.circle,
+          ),
+          child: Text(statusEmoji, style: const TextStyle(fontSize: 22)),
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               transfer.newbornName,
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 4),
             Text(
-              'Dossier: ${transfer.dossierNumber}',
+              '📁 Dossier: ${transfer.dossierNumber}',
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ],
@@ -252,19 +340,33 @@ class _TransferRequestsScreenState
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
                 ),
-                child: Text(
-                  statusLabel,
-                  style: TextStyle(fontSize: 10, color: statusColor),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(statusEmoji, style: const TextStyle(fontSize: 12)),
+                    const SizedBox(width: 4),
+                    Text(
+                      statusLabel,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: statusColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 8),
               Text(
-                'Demandé le ${DateFormat('dd/MM/yyyy', 'fr_FR').format(transfer.requestedAt)}',
+                '📅 ${DateFormat('dd/MM/yyyy', 'fr_FR').format(transfer.requestedAt)}',
                 style: const TextStyle(fontSize: 11, color: Colors.grey),
               ),
             ],
@@ -272,32 +374,89 @@ class _TransferRequestsScreenState
         ),
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildInfoRow('Demandé par', transfer.requestedByName),
-                _buildInfoRow('Destination', transfer.transferOption),
+                _buildInfoRow(
+                  '👤 Demandé par',
+                  transfer.requestedByName,
+                  Icons.person,
+                ),
+                _buildInfoRow(
+                  '🏥 Destination',
+                  transfer.transferOption,
+                  Icons.local_hospital,
+                ),
                 if (transfer.transferReason != null &&
                     transfer.transferReason!.isNotEmpty)
-                  _buildInfoRow('Motif', transfer.transferReason!),
+                  _buildInfoRow(
+                    '📝 Motif',
+                    transfer.transferReason!,
+                    Icons.description,
+                  ),
                 if (transfer.status == AppConstants.transferStatusApproved &&
                     transfer.respondedAt != null)
                   _buildInfoRow(
-                      'Approuvé le',
-                      DateFormat('dd/MM/yyyy HH:mm', 'fr_FR')
-                          .format(transfer.respondedAt!)),
+                    '✅ Approuvé le',
+                    DateFormat(
+                      'dd/MM/yyyy HH:mm',
+                      'fr_FR',
+                    ).format(transfer.respondedAt!),
+                    Icons.check_circle,
+                  ),
                 if (transfer.status == AppConstants.transferStatusRejected &&
                     transfer.rejectionReason != null)
-                  _buildInfoRow('Raison du refus', transfer.rejectionReason!),
-                const Divider(),
-
-                // Action buttons
+                  _buildInfoRow(
+                    '❌ Raison du refus',
+                    transfer.rejectionReason!,
+                    Icons.cancel,
+                    color: AppColors.emergencyRed,
+                  ),
+                const Divider(height: 24),
                 if (transfer.status == AppConstants.transferStatusPending)
                   _buildPendingActions(transfer),
                 if (transfer.status == AppConstants.transferStatusApproved)
                   _buildApprovedActions(transfer),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(
+    String label,
+    String value,
+    IconData icon, {
+    Color? color,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 110,
+            child: Row(
+              children: [
+                Icon(icon, size: 16, color: color ?? Colors.grey[500]),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: color ?? Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(fontSize: 14, color: color ?? Colors.black87),
             ),
           ),
         ],
@@ -311,13 +470,15 @@ class _TransferRequestsScreenState
         Expanded(
           child: OutlinedButton.icon(
             onPressed: () => _showRejectDialog(transfer),
-            icon: const Icon(Icons.close),
-            label: const Text('Refuser'),
+            icon: const Icon(Icons.close, size: 18),
+            label: const Text('❌ Refuser'),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.emergencyRed,
               side: const BorderSide(color: AppColors.emergencyRed),
+              padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
           ),
         ),
@@ -325,12 +486,14 @@ class _TransferRequestsScreenState
         Expanded(
           child: ElevatedButton.icon(
             onPressed: () => _approveTransfer(transfer),
-            icon: const Icon(Icons.check),
-            label: const Text('Approuver'),
+            icon: const Icon(Icons.check, size: 18),
+            label: const Text('✅ Approuver'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.stableGreen,
+              padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
           ),
         ),
@@ -344,11 +507,13 @@ class _TransferRequestsScreenState
         Expanded(
           child: OutlinedButton.icon(
             onPressed: () => _viewDossier(transfer.dossierId),
-            icon: const Icon(Icons.visibility),
-            label: const Text('Voir le dossier'),
+            icon: const Icon(Icons.visibility, size: 18),
+            label: const Text('👁️ Voir dossier'),
             style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
           ),
         ),
@@ -356,12 +521,14 @@ class _TransferRequestsScreenState
         Expanded(
           child: ElevatedButton.icon(
             onPressed: () => _completeTransfer(transfer),
-            icon: const Icon(Icons.check_circle),
-            label: const Text('Marquer terminé'),
+            icon: const Icon(Icons.check_circle, size: 18),
+            label: const Text('🏁 Terminer'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.medicalBlue,
+              padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
           ),
         ),
@@ -369,36 +536,12 @@ class _TransferRequestsScreenState
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 14),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _approveTransfer(TransferModel transfer) async {
     final confirmed = await context.showConfirmationDialog(
-      title: 'Approuver le transfert',
+      title: '✅ Approuver le transfert',
       message:
           'Êtes-vous sûr de vouloir approuver le transfert de ${transfer.newbornName} ?\n\n'
-          'Le dossier sera accessible dans votre liste.',
+          '📋 Le dossier sera accessible dans votre liste.',
       confirmText: 'Approuver',
       confirmColor: AppColors.stableGreen,
     );
@@ -408,20 +551,27 @@ class _TransferRequestsScreenState
     try {
       await ref.read(transferProvider.notifier).approveTransfer(transfer.id);
       if (mounted) {
-        context.showSuccessSnackBar('Transfert approuvé avec succès');
+        context.showSuccessSnackBar('✅ Transfert approuvé avec succès');
       }
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Erreur: $e');
+        context.showErrorSnackBar('❌ Erreur: ${e.toString()}');
       }
     }
   }
 
   void _showRejectDialog(TransferModel transfer) {
+    _rejectionReason = null;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Refuser le transfert'),
+        title: const Row(
+          children: [
+            Icon(Icons.cancel, color: AppColors.emergencyRed),
+            SizedBox(width: 8),
+            Text('❌ Refuser le transfert'),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -432,6 +582,7 @@ class _TransferRequestsScreenState
               decoration: const InputDecoration(
                 hintText: 'Raison du refus...',
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.description),
               ),
               maxLines: 3,
             ),
@@ -450,18 +601,23 @@ class _TransferRequestsScreenState
                 );
                 return;
               }
-              Navigator.pop(context);
+              if (!mounted) return;
+              final localContext = context;
+              final messenger = ScaffoldMessenger.of(localContext);
+              Navigator.pop(localContext);
               try {
                 await ref
                     .read(transferProvider.notifier)
                     .rejectTransfer(transfer.id, _rejectionReason!);
-                if (mounted) {
-                  context.showSuccessSnackBar('Transfert refusé');
-                }
+                if (!mounted) return;
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('❌ Transfert refusé')),
+                );
               } catch (e) {
-                if (mounted) {
-                  context.showErrorSnackBar('Erreur: $e');
-                }
+                if (!mounted) return;
+                messenger.showSnackBar(
+                  SnackBar(content: Text('❌ Erreur: ${e.toString()}')),
+                );
               }
             },
             style: ElevatedButton.styleFrom(
@@ -476,8 +632,9 @@ class _TransferRequestsScreenState
 
   Future<void> _completeTransfer(TransferModel transfer) async {
     final confirmed = await context.showConfirmationDialog(
-      title: 'Terminer le transfert',
-      message: 'Confirmez-vous que la prise en charge est terminée ?',
+      title: '🏁 Terminer le transfert',
+      message:
+          'Confirmez-vous que la prise en charge de ${transfer.newbornName} est terminée ?',
       confirmText: 'Terminer',
       confirmColor: AppColors.medicalBlue,
     );
@@ -487,17 +644,20 @@ class _TransferRequestsScreenState
     try {
       await ref.read(transferProvider.notifier).completeTransfer(transfer.id);
       if (mounted) {
-        context.showSuccessSnackBar('Transfert marqué comme terminé');
+        context.showSuccessSnackBar('🏁 Transfert marqué comme terminé');
       }
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Erreur: $e');
+        context.showErrorSnackBar('❌ Erreur: ${e.toString()}');
       }
     }
   }
 
   void _viewDossier(String dossierId) {
-    Navigator.pushNamed(context, '/dossiers/$dossierId');
+    // ✅ تصحيح التنقل إلى dossier_detail باستخدام اسم المسار
+    GoRouter.of(
+      context,
+    ).pushNamed('dossier_detail', pathParameters: {'id': dossierId});
   }
 
   Color _getStatusColor(String status) {
@@ -515,18 +675,18 @@ class _TransferRequestsScreenState
     }
   }
 
-  IconData _getStatusIcon(String status) {
+  String _getStatusEmoji(String status) {
     switch (status) {
       case 'pending':
-        return Icons.pending;
+        return '⏳';
       case 'approved':
-        return Icons.check_circle;
+        return '✅';
       case 'rejected':
-        return Icons.cancel;
+        return '❌';
       case 'completed':
-        return Icons.done_all;
+        return '🏁';
       default:
-        return Icons.help;
+        return '📋';
     }
   }
 

@@ -1,5 +1,3 @@
-// frontend/lib/shared/widgets/error_widget.dart
-
 import 'package:flutter/material.dart';
 import '../../theme/colors.dart';
 
@@ -42,11 +40,15 @@ class CustomErrorWidget extends StatelessWidget {
             if (onRetry != null)
               ElevatedButton.icon(
                 onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Réessayer'),
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('🔄 Réessayer'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.medicalBlue,
                   foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 ),
               ),
           ],
@@ -65,9 +67,9 @@ class NetworkErrorWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CustomErrorWidget(
-      message: 'Erreur de connexion réseau. Vérifiez votre connexion internet.',
+      message: '📡 Erreur de connexion réseau. Vérifiez votre connexion internet.',
       onRetry: onRetry,
-      icon: Icons.wifi_off,
+      icon: Icons.wifi_off_rounded,
     );
   }
 }
@@ -81,9 +83,9 @@ class ServerErrorWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CustomErrorWidget(
-      message: 'Erreur serveur. Veuillez réessayer plus tard.',
+      message: '☁️ Erreur serveur. Veuillez réessayer plus tard.',
       onRetry: onRetry,
-      icon: Icons.cloud_off,
+      icon: Icons.cloud_off_rounded,
     );
   }
 }
@@ -97,7 +99,7 @@ class EmptyDataWidget extends StatelessWidget {
 
   const EmptyDataWidget({
     super.key,
-    this.message = 'Aucune donnée disponible',
+    this.message = '📭 Aucune donnée disponible',
     this.icon,
     this.onAction,
     this.actionLabel,
@@ -112,7 +114,7 @@ class EmptyDataWidget extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              icon ?? Icons.inbox,
+              icon ?? Icons.inbox_rounded,
               size: 64,
               color: Colors.grey[400],
             ),
@@ -129,6 +131,11 @@ class EmptyDataWidget extends StatelessWidget {
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: onAction,
+                style: ElevatedButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
                 child: Text(actionLabel!),
               ),
             ],

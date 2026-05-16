@@ -1,5 +1,3 @@
-// frontend/lib/features/admin/providers/admin_provider.dart
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/constants/app_constants.dart';
@@ -15,7 +13,7 @@ class AdminUsersState {
   const AdminUsersState({
     this.users = const [],
     this.isLoading = false,
-    this.error = null,
+    this.error,
   });
 
   AdminUsersState copyWith({
@@ -33,15 +31,14 @@ class AdminUsersState {
 
 /// مزود إدارة المستخدمين
 final adminUsersProvider = StateNotifierProvider<AdminUsersNotifier, AdminUsersState>((ref) {
-  return AdminUsersNotifier(ref);
+  return AdminUsersNotifier();
 });
 
 class AdminUsersNotifier extends StateNotifier<AdminUsersState> {
-  final Ref _ref;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final AuthService _authService = AuthService();
 
-  AdminUsersNotifier(this._ref) : super(const AdminUsersState()) {
+  AdminUsersNotifier() : super(const AdminUsersState()) {
     _loadUsers();
   }
 
@@ -77,13 +74,11 @@ class AdminUsersNotifier extends StateNotifier<AdminUsersState> {
   }) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      // إنشاء المستخدم في Firebase Auth
       final userCredential = await _authService.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
+        email,
+        password,
       );
 
-      // إنشاء المستند في Firestore
       final newUser = UserModel(
         id: userCredential.user!.uid,
         firstName: firstName,
@@ -100,7 +95,6 @@ class AdminUsersNotifier extends StateNotifier<AdminUsersState> {
           .doc(userCredential.user!.uid)
           .set(newUser.toJson());
 
-      // إعادة تحميل القائمة
       await _loadUsers();
       state = state.copyWith(isLoading: false);
       return true;
@@ -138,9 +132,6 @@ class AdminUsersNotifier extends StateNotifier<AdminUsersState> {
   Future<bool> deleteUser(String userId) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      // حذف من Authentication
-      await _authService.deleteUser(userId);
-      // حذف من Firestore
       await _firestore
           .collection(AppConstants.usersCollection)
           .doc(userId)

@@ -16,7 +16,7 @@ class AIAssistantState {
     this.suggestions = const [],
     this.riskFactors = const [],
     this.isLoading = false,
-    this.error = null,
+    this.error,
     this.currentContext = 'general',
   });
 

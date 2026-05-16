@@ -2,16 +2,20 @@ import 'package:flutter/material.dart';
 import '../../../../theme/colors.dart';
 import '../../../../core/constants/app_constants.dart';
 
-/// Step 1: Service selection (Prématuré / À terme)
-/// This step determines which collection the dossier will be saved to.
+/// Step 1: Service selection
+/// 👩‍⚕️ Maternité → Nouveau-né prématuré / Nouveau-né à terme
+/// 🏥 Service Néonatal → Prématuré / À terme (après transfert)
 class Step1Service extends StatefulWidget {
   final Function(String) onServiceSelected;
   final String initialValue;
+  final bool
+  isTransferMode; // ✅ vrai si c'est un transfert vers Service Néonatal
 
   const Step1Service({
     super.key,
     required this.onServiceSelected,
     this.initialValue = '',
+    this.isTransferMode = false,
   });
 
   @override
@@ -30,63 +34,107 @@ class _Step1ServiceState extends State<Step1Service> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Choisissez le service',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          // ✅ Header avec icône
+          Row(
+            children: [
+              Icon(
+                widget.isTransferMode ? Icons.local_hospital : Icons.woman,
+                color: AppColors.medicalBlue,
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                widget.isTransferMode
+                    ? '🏥 Service Néonatal'
+                    : '👩‍⚕️ Maternité',
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.medicalBlue,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           Text(
-            'Cette sélection détermine le type de dossier et le suivi associé.',
-            style: TextStyle(color: Colors.grey[600]),
+            widget.isTransferMode
+                ? 'Sélectionnez le type de nouveau-né pour le service néonatal'
+                : 'La sélection détermine le type de dossier et le suivi associé',
+            style: TextStyle(color: Colors.grey[600], fontSize: 14),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
+
+          // ✅ Deux cartes principales
           Row(
             children: [
               Expanded(
                 child: _buildServiceCard(
-                  title: 'Nouveau-né Prématuré',
-                  subtitle: 'Âge gestationnel < 37 SA',
+                  emoji: '👶',
+                  title: widget.isTransferMode
+                      ? 'Prématuré'
+                      : 'Nouveau-né prématuré',
+                  subtitle: widget.isTransferMode
+                      ? '< 37 SA'
+                      : 'Âge gestationnel < 37 SA',
                   description: 'Surveillance renforcée, soins intensifs',
-                  icon: Icons.access_time,
                   value: AppConstants.servicePremature,
                   color: const Color(0xFF7B2D8E),
+                  isTransferMode: widget.isTransferMode,
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: _buildServiceCard(
-                  title: 'Nouveau-né à terme',
-                  subtitle: 'Âge gestationnel ≥ 37 SA',
+                  emoji: '🍼',
+                  title: widget.isTransferMode
+                      ? 'À terme'
+                      : 'Nouveau-né à terme',
+                  subtitle: widget.isTransferMode
+                      ? '≥ 37 SA'
+                      : 'Âge gestationnel ≥ 37 SA',
                   description: 'Surveillance standard, retour avec la mère',
-                  icon: Icons.celebration,
                   value: AppConstants.serviceFullTerm,
                   color: AppColors.stableGreen,
+                  isTransferMode: widget.isTransferMode,
                 ),
               ),
             ],
           ),
+
           const SizedBox(height: 32),
+
+          // ✅ Message de confirmation
           if (_selectedService != null)
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.medicalBlue.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
+                color: AppColors.stableGreen.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.stableGreen.withValues(alpha: 0.3),
+                ),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.check_circle, color: AppColors.medicalBlue),
+                  const Icon(
+                    Icons.check_circle,
+                    color: AppColors.stableGreen,
+                    size: 24,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       _selectedService == AppConstants.servicePremature
-                          ? 'Dossier prématuré sélectionné'
-                          : 'Dossier à terme sélectionné',
-                      style: const TextStyle(fontWeight: FontWeight.w500),
+                          ? '✓ Fiche de suivi prématuré sélectionnée'
+                          : '✓ Fiche de suivi à terme sélectionnée',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 ],
@@ -98,12 +146,13 @@ class _Step1ServiceState extends State<Step1Service> {
   }
 
   Widget _buildServiceCard({
+    required String emoji,
     required String title,
     required String subtitle,
     required String description,
-    required IconData icon,
     required String value,
     required Color color,
+    required bool isTransferMode,
   }) {
     final isSelected = _selectedService == value;
     return InkWell(
@@ -113,54 +162,78 @@ class _Step1ServiceState extends State<Step1Service> {
           widget.onServiceSelected(value);
         });
       },
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
+      borderRadius: BorderRadius.circular(24),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
+          gradient: isSelected
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [color, color.withValues(alpha: 0.8)],
+                )
+              : null,
           border: Border.all(
-            color: isSelected ? color : Colors.grey.shade300,
-            width: isSelected ? 2 : 1,
+            color: isSelected ? Colors.transparent : Colors.grey.shade300,
+            width: 1.5,
           ),
-          borderRadius: BorderRadius.circular(20),
-          color: isSelected ? color.withValues(alpha: 0.05) : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          color: isSelected ? null : Colors.white,
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
         ),
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color, size: 32),
-              ),
+              // ✅ Emoji ou icône
+              Text(emoji, style: const TextStyle(fontSize: 42)),
               const SizedBox(height: 16),
               Text(
                 title,
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: isTransferMode ? 18 : 16,
                   fontWeight: FontWeight.bold,
-                  color: isSelected ? color : AppColors.darkGray,
+                  color: isSelected ? Colors.white : color,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 subtitle,
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isSelected ? Colors.white70 : Colors.grey[600],
+                ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                description,
-                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-              ),
+              const SizedBox(height: 12),
+              if (!isTransferMode)
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isSelected ? Colors.white70 : Colors.grey[500],
+                  ),
+                ),
               const SizedBox(height: 16),
               if (isSelected)
-                Row(
+                const Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Icon(Icons.check_circle, color: color, size: 20),
+                    Icon(Icons.check_circle, color: Colors.white, size: 22),
                   ],
                 ),
             ],

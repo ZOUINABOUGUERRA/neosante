@@ -7,8 +7,8 @@ final connectivityProvider = Provider<Connectivity>((ref) {
 });
 
 /// Network connectivity status stream provider
-/// ✅ إصلاح: استخدام Stream<List<ConnectivityResult>> بدلاً من Stream<ConnectivityResult>
-final networkStatusStreamProvider = StreamProvider<List<ConnectivityResult>>((ref) {
+final networkStatusStreamProvider =
+    StreamProvider<List<ConnectivityResult>>((ref) {
   final connectivity = ref.watch(connectivityProvider);
   return connectivity.onConnectivityChanged;
 });
@@ -16,12 +16,13 @@ final networkStatusStreamProvider = StreamProvider<List<ConnectivityResult>>((re
 /// Current network status provider (returns true if connected)
 final isConnectedProvider = FutureProvider<bool>((ref) async {
   final connectivity = ref.watch(connectivityProvider);
-  final result = await connectivity.checkConnectivity();
-  return result != ConnectivityResult.none;
+  final results = await connectivity.checkConnectivity();
+  return results.any((entry) => entry != ConnectivityResult.none);
 });
 
 /// Network status notifier for reactive connectivity state
-final networkStatusProvider = StateNotifierProvider<NetworkStatusNotifier, bool>((ref) {
+final networkStatusProvider =
+    StateNotifierProvider<NetworkStatusNotifier, bool>((ref) {
   return NetworkStatusNotifier(ref);
 });
 
@@ -32,14 +33,7 @@ class NetworkStatusNotifier extends StateNotifier<bool> {
   NetworkStatusNotifier(this.ref) : super(true) {
     _connectivityStream = ref.read(connectivityProvider).onConnectivityChanged;
     _connectivityStream.listen((List<ConnectivityResult> results) {
-      // ✅ التحقق من وجود اتصال في أي من النتائج
-      final isConnected = results.any((result) => result != ConnectivityResult.none);
-      state = isConnected;
+      state = results.any((result) => result != ConnectivityResult.none);
     });
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
   }
 }

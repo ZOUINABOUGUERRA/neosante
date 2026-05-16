@@ -2,9 +2,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../core/constants/app_constants.dart';
-import '../../../shared/models/notification_model.dart';
-import '../../../services/auth_service.dart';
+import '/../../core/constants/app_constants.dart';
+import '/../../shared/models/notification_model.dart';
+import '/../../services/auth_service.dart';
 
 /// Notifications state class
 class NotificationsState {
@@ -76,9 +76,8 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
           .doc(notificationId)
           .update({'isRead': true});
     } catch (e) {
-      // ✅ Correction: utiliser kDebugMode pour le débogage
       if (kDebugMode) {
-        print('Error marking notification as read: $e');
+        debugPrint('Error marking notification as read: $e');
       }
     }
   }
@@ -102,7 +101,7 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
       await batch.commit();
     } catch (e) {
       if (kDebugMode) {
-        print('Error marking all as read: $e');
+        debugPrint('Error marking all as read: $e');
       }
     }
   }
@@ -115,7 +114,7 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
           .delete();
     } catch (e) {
       if (kDebugMode) {
-        print('Error deleting notification: $e');
+        debugPrint('Error deleting notification: $e');
       }
     }
   }
@@ -137,7 +136,7 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
       await batch.commit();
     } catch (e) {
       if (kDebugMode) {
-        print('Error deleting all notifications: $e');
+        debugPrint('Error deleting all notifications: $e');
       }
     }
   }
